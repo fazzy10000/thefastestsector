@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "homepage": "https://<username>.github.io/the-fastest-sector",
+  "homepage": "https://fazzy10000.github.io/thefastestsector",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

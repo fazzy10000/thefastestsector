@@ -1,24 +1,17 @@
-import { useState, useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import ArticleCard from '../components/ArticleCard'
-import type { Article } from '../lib/types'
+import SEO from '../components/SEO'
 import { useArticles } from '../hooks/useArticles'
-import { SAMPLE_ARTICLES } from '../lib/sampleData'
 
 export default function Home() {
-  const { articles: firebaseArticles, loading } = useArticles()
-  const [articles, setArticles] = useState<Article[]>(SAMPLE_ARTICLES)
+  const { articles, loading } = useArticles()
   const carouselRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    if (!loading && firebaseArticles.length > 0) {
-      setArticles(firebaseArticles)
-    }
-  }, [firebaseArticles, loading])
-
-  const featured = articles.filter((a) => a.featured)
-  const latest = articles.filter((a) => a.status === 'published').slice(0, 8)
-  const older = articles.filter((a) => a.status === 'published').slice(4)
+  const published = articles.filter((a) => a.status === 'published')
+  const featured = published.filter((a) => a.featured)
+  const latest = published.slice(0, 8)
+  const older = published.slice(4)
 
   const scrollCarousel = (dir: 'left' | 'right') => {
     if (!carouselRef.current) return
@@ -26,8 +19,24 @@ export default function Home() {
     carouselRef.current.scrollBy({ left: dir === 'left' ? -amount : amount, behavior: 'smooth' })
   }
 
+  if (loading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-16">
+        <div className="animate-pulse space-y-6">
+          <div className="h-64 bg-gray-200 dark:bg-white/10 rounded-xl" />
+          <div className="grid md:grid-cols-2 gap-6">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-48 bg-gray-200 dark:bg-white/10 rounded-xl" />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
+      <SEO />
       {/* Hero section */}
       <section className="max-w-7xl mx-auto px-4 pt-6 pb-8">
         {featured.length > 0 && (

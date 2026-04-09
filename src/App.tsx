@@ -15,7 +15,7 @@ import AdminSettings from './pages/admin/AdminSettings'
 
 export default function App() {
   return (
-    <BrowserRouter basename="/the-fastest-sector">
+    <BrowserRouter basename="/thefastestsector">
       <Routes>
         {/* Public pages */}
         <Route element={<Layout />}>

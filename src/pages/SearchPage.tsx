@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import ArticleCard from '../components/ArticleCard'
 import { useArticles } from '../hooks/useArticles'
-import { SAMPLE_ARTICLES } from '../lib/sampleData'
 import type { Article } from '../lib/types'
 import { Search } from 'lucide-react'
+import SEO from '../components/SEO'
 
 export default function SearchPage() {
   const [params] = useSearchParams()
   const query = params.get('q') || ''
-  const { articles: firebaseArticles, loading } = useArticles()
+  const { articles } = useArticles()
   const [results, setResults] = useState<Article[]>([])
 
   useEffect(() => {
@@ -18,8 +18,7 @@ export default function SearchPage() {
       return
     }
     const q = query.toLowerCase()
-    const source = firebaseArticles.length > 0 ? firebaseArticles : SAMPLE_ARTICLES
-    const filtered = source.filter(
+    const filtered = articles.filter(
       (a) =>
         a.status === 'published' &&
         (a.title.toLowerCase().includes(q) ||
@@ -28,10 +27,11 @@ export default function SearchPage() {
           a.tags.some((t) => t.toLowerCase().includes(q)))
     )
     setResults(filtered)
-  }, [query, firebaseArticles, loading])
+  }, [query, articles])
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
+      <SEO title={query ? `Search: ${query}` : 'Search'} description={`Search results for "${query}" on The Fastest Sector.`} />
       <div className="mb-8">
         <div className="flex items-center gap-3 mb-2">
           <Search className="w-6 h-6 text-text-secondary" />

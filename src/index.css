@@ -1,23 +1,25 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --color-primary: #dc2626;
-  --color-primary-dark: #b91c1c;
-  --color-accent: #7c3aed;
-  --color-surface-dark: #1a1a2e;
-  --color-surface-darker: #16162a;
-  --color-surface-light: #f8f9fa;
+  --color-primary: #c8102e;
+  --color-primary-dark: #a00d24;
+  --color-accent: #c8102e;
+  --color-surface-dark: #1a1a1a;
+  --color-surface-darker: #111111;
+  --color-surface-light: #f5f5f5;
   --color-surface-card: #ffffff;
-  --color-text-primary: #1a1a2e;
+  --color-text-primary: #1a1a1a;
   --color-text-secondary: #6b7280;
   --color-text-on-dark: #ffffff;
-  --color-badge-f1: #dc2626;
-  --color-badge-fe: #7c3aed;
-  --color-badge-indycar: #2563eb;
-  --color-badge-feeder: #059669;
-  --color-badge-news: #6b7280;
-  --color-badge-exclusive: #d97706;
-  --color-badge-fia: #374151;
+  --color-badge-f1: #c8102e;
+  --color-badge-fe: #0090d0;
+  --color-badge-indycar: #1e3a5f;
+  --color-badge-feeder: #2d8659;
+  --color-badge-news: #555555;
+  --color-badge-exclusive: #c8102e;
+  --color-badge-fia: #333333;
 
   --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-heading: 'Inter', system-ui, -apple-system, sans-serif;
@@ -81,7 +83,7 @@ body {
 .article-content ul { list-style: disc; padding-left: 1.5rem; margin: 0.75rem 0; }
 .article-content ol { list-style: decimal; padding-left: 1.5rem; margin: 0.75rem 0; }
 .article-content blockquote {
-  border-left: 4px solid #dc2626;
+  border-left: 4px solid #c8102e;
   padding-left: 1.25rem;
   color: #4b5563;
   font-style: italic;

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { Search, Moon, Sun, Menu, X } from 'lucide-react'
+import { useDarkMode } from '../hooks/useDarkMode'
 
 const NAV_LINKS = [
   { label: 'Home', path: '/' },
@@ -9,19 +10,15 @@ const NAV_LINKS = [
   { label: 'IndyCar', path: '/category/indycar' },
   { label: 'Feeder Series', path: '/category/feeder-series' },
   { label: 'About', path: '/about' },
+  { label: 'Contact', path: '/contact' },
 ]
 
 export default function Navbar() {
-  const [dark, setDark] = useState(false)
+  const { dark, toggle: toggleDark } = useDarkMode()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileOpen, setMobileOpen] = useState(false)
   const navigate = useNavigate()
-
-  const toggleDark = () => {
-    setDark(!dark)
-    document.documentElement.classList.toggle('dark')
-  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()

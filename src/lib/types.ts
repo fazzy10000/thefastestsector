@@ -1,3 +1,11 @@
+export type ContentType = 'news' | 'results' | 'opinion'
+
+export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
+  news: 'News',
+  results: 'Results',
+  opinion: 'Opinion',
+}
+
 export interface Article {
   id: string
   title: string
@@ -6,6 +14,7 @@ export interface Article {
   content: string
   featuredImage: string
   category: Category
+  contentType: ContentType
   tags: string[]
   author: string
   status: 'draft' | 'published'
@@ -21,7 +30,6 @@ export type Category =
   | 'formula-e'
   | 'indycar'
   | 'exclusive'
-  | 'opinion'
   | 'f1-academy'
   | 'other'
 
@@ -31,7 +39,6 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   'formula-e': 'Formula E',
   'indycar': 'IndyCar',
   'exclusive': 'Exclusive',
-  'opinion': 'Opinion',
   'f1-academy': 'F1 Academy',
   'other': 'Other',
 }
@@ -42,7 +49,6 @@ export const CATEGORY_COLORS: Record<Category, string> = {
   'formula-e': 'bg-badge-fe',
   'indycar': 'bg-badge-indycar',
   'exclusive': 'bg-badge-exclusive',
-  'opinion': 'bg-badge-news',
   'f1-academy': 'bg-badge-f1',
   'other': 'bg-badge-news',
 }

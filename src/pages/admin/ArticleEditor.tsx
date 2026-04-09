@@ -7,8 +7,9 @@ import LinkExtension from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useArticles } from '../../hooks/useArticles'
 import { useImageUpload } from '../../hooks/useImageUpload'
-import { CATEGORY_LABELS } from '../../lib/types'
-import type { Article, Category } from '../../lib/types'
+import { CATEGORY_LABELS, CONTENT_TYPE_LABELS } from '../../lib/types'
+import type { Article, Category, ContentType } from '../../lib/types'
+import SEOPanel from '../../components/admin/SEOPanel'
 import {
   Save,
   Eye,
@@ -47,6 +48,7 @@ export default function ArticleEditor() {
   const [slug, setSlug] = useState('')
   const [excerpt, setExcerpt] = useState('')
   const [category, setCategory] = useState<Category>('formula-1')
+  const [contentType, setContentType] = useState<ContentType>('news')
   const [tags, setTags] = useState('')
   const [author, setAuthor] = useState('')
   const [featuredImage, setFeaturedImage] = useState('')
@@ -54,6 +56,9 @@ export default function ArticleEditor() {
   const [featured, setFeatured] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loadingArticle, setLoadingArticle] = useState(!!id)
+  const [focusKeyphrase, setFocusKeyphrase] = useState('')
+  const [metaTitle, setMetaTitle] = useState('')
+  const [metaDescription, setMetaDescription] = useState('')
 
   const editor = useEditor({
     extensions: [
@@ -73,6 +78,7 @@ export default function ArticleEditor() {
           setSlug(article.slug)
           setExcerpt(article.excerpt)
           setCategory(article.category)
+          setContentType(article.contentType || 'news')
           setTags(article.tags.join(', '))
           setAuthor(article.author)
           setFeaturedImage(article.featuredImage)
@@ -112,6 +118,7 @@ export default function ArticleEditor() {
       content: editor.getHTML(),
       featuredImage,
       category,
+      contentType,
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       author: author.trim(),
       status: finalStatus,
@@ -287,6 +294,21 @@ export default function ArticleEditor() {
               <EditorContent editor={editor} className="prose max-w-none" />
             </div>
           )}
+
+          {/* SEO Panel */}
+          <SEOPanel
+            title={title}
+            slug={slug}
+            excerpt={excerpt}
+            content={editor?.getHTML() || ''}
+            featuredImage={featuredImage}
+            focusKeyphrase={focusKeyphrase}
+            onFocusKeyphraseChange={setFocusKeyphrase}
+            metaTitle={metaTitle}
+            onMetaTitleChange={setMetaTitle}
+            metaDescription={metaDescription}
+            onMetaDescriptionChange={setMetaDescription}
+          />
         </div>
 
         {/* Sidebar */}
@@ -340,6 +362,27 @@ export default function ArticleEditor() {
                 <option key={val} value={val}>{label}</option>
               ))}
             </select>
+          </div>
+
+          {/* Content Type */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="font-semibold text-gray-900 text-sm mb-3">Content Type</h3>
+            <div className="flex gap-1 bg-gray-50 p-1 rounded-lg">
+              {(Object.entries(CONTENT_TYPE_LABELS) as [ContentType, string][]).map(([val, label]) => (
+                <button
+                  key={val}
+                  type="button"
+                  onClick={() => setContentType(val)}
+                  className={`flex-1 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                    contentType === val
+                      ? 'bg-primary text-white shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Author */}

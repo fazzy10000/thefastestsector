@@ -13,10 +13,39 @@ import {
   limit as fbLimit,
   type QueryConstraint,
 } from 'firebase/firestore'
-import { db } from '../lib/firebase'
+import { db, isFirebaseConfigured } from '../lib/firebase'
+import { SAMPLE_ARTICLES } from '../lib/sampleData'
 import type { Article, Category } from '../lib/types'
 
 const COLLECTION = 'articles'
+const LS_KEY = 'tfs_articles'
+const LS_VERSION_KEY = 'tfs_articles_v'
+const CURRENT_VERSION = '2'
+
+function readLocal(): Article[] {
+  try {
+    const raw = localStorage.getItem(LS_KEY)
+    if (!raw) return []
+    const data = JSON.parse(raw) as Article[]
+    return data.map((a) => ({
+      ...a,
+      contentType: a.contentType || (a.category === 'opinion' ? 'opinion' : 'news'),
+    }))
+  } catch {
+    return []
+  }
+}
+
+function writeLocal(articles: Article[]) {
+  localStorage.setItem(LS_KEY, JSON.stringify(articles))
+}
+
+function initLocalIfEmpty() {
+  if (!localStorage.getItem(LS_KEY) || localStorage.getItem(LS_VERSION_KEY) !== CURRENT_VERSION) {
+    writeLocal(SAMPLE_ARTICLES)
+    localStorage.setItem(LS_VERSION_KEY, CURRENT_VERSION)
+  }
+}
 
 export function useArticles() {
   const [articles, setArticles] = useState<Article[]>([])
@@ -28,10 +57,19 @@ export function useArticles() {
     limit?: number
     featured?: boolean
   }) => {
-    if (!db) {
+    if (!isFirebaseConfigured || !db) {
+      initLocalIfEmpty()
+      let data = readLocal()
+      if (opts?.status) data = data.filter((a) => a.status === opts.status)
+      if (opts?.category) data = data.filter((a) => a.category === opts.category)
+      if (opts?.featured !== undefined) data = data.filter((a) => a.featured === opts.featured)
+      data.sort((a, b) => b.createdAt - a.createdAt)
+      if (opts?.limit) data = data.slice(0, opts.limit)
+      setArticles(data)
       setLoading(false)
-      return []
+      return data
     }
+
     setLoading(true)
     try {
       const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')]
@@ -54,7 +92,10 @@ export function useArticles() {
   }, [])
 
   const getArticle = useCallback(async (id: string): Promise<Article | null> => {
-    if (!db) return null
+    if (!isFirebaseConfigured || !db) {
+      initLocalIfEmpty()
+      return readLocal().find((a) => a.id === id) ?? null
+    }
     try {
       const snap = await getDoc(doc(db, COLLECTION, id))
       if (!snap.exists()) return null
@@ -65,7 +106,10 @@ export function useArticles() {
   }, [])
 
   const getArticleBySlug = useCallback(async (slug: string): Promise<Article | null> => {
-    if (!db) return null
+    if (!isFirebaseConfigured || !db) {
+      initLocalIfEmpty()
+      return readLocal().find((a) => a.slug === slug) ?? null
+    }
     try {
       const q = query(collection(db, COLLECTION), where('slug', '==', slug))
       const snapshot = await getDocs(q)
@@ -78,18 +122,38 @@ export function useArticles() {
   }, [])
 
   const createArticle = useCallback(async (data: Omit<Article, 'id'>) => {
-    if (!db) throw new Error('Firebase not configured')
+    if (!isFirebaseConfigured || !db) {
+      initLocalIfEmpty()
+      const all = readLocal()
+      const newId = crypto.randomUUID()
+      all.unshift({ ...data, id: newId } as Article)
+      writeLocal(all)
+      return newId
+    }
     const docRef = await addDoc(collection(db, COLLECTION), data)
     return docRef.id
   }, [])
 
   const updateArticle = useCallback(async (id: string, data: Partial<Article>) => {
-    if (!db) throw new Error('Firebase not configured')
+    if (!isFirebaseConfigured || !db) {
+      initLocalIfEmpty()
+      const all = readLocal()
+      const idx = all.findIndex((a) => a.id === id)
+      if (idx !== -1) {
+        all[idx] = { ...all[idx], ...data }
+        writeLocal(all)
+      }
+      return
+    }
     await updateDoc(doc(db, COLLECTION, id), data)
   }, [])
 
   const removeArticle = useCallback(async (id: string) => {
-    if (!db) throw new Error('Firebase not configured')
+    if (!isFirebaseConfigured || !db) {
+      initLocalIfEmpty()
+      writeLocal(readLocal().filter((a) => a.id !== id))
+      return
+    }
     await deleteDoc(doc(db, COLLECTION, id))
   }, [])
 

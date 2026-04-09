@@ -1,10 +1,12 @@
 import { useSettings } from '../hooks/useSettings'
+import SEO from '../components/SEO'
 
 export default function About() {
   const { settings } = useSettings()
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
+      <SEO title="About Us" description="Learn about The Fastest Sector team and our mission to bring you the best motorsport content." />
       <h1 className="text-3xl font-bold text-text-primary dark:text-white mb-2">About Us</h1>
       <div className="h-1 w-16 bg-primary mt-2 mb-8 rounded-full" />
 

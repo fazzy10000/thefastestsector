@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 import { ArrowLeft, Clock, User } from 'lucide-react'
 import { useArticles } from '../hooks/useArticles'
-import { SAMPLE_ARTICLES } from '../lib/sampleData'
+import SEO from '../components/SEO'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/types'
 import type { Article } from '../lib/types'
 
@@ -17,12 +17,7 @@ export default function ArticlePage() {
     async function load() {
       if (!slug) return
       const found = await getArticleBySlug(slug)
-      if (found) {
-        setArticle(found)
-      } else {
-        const sample = SAMPLE_ARTICLES.find((a) => a.slug === slug)
-        if (sample) setArticle(sample)
-      }
+      setArticle(found)
       setLoading(false)
     }
     load()
@@ -56,6 +51,17 @@ export default function ArticlePage() {
 
   return (
     <article className="max-w-4xl mx-auto px-4 py-8">
+      <SEO
+        title={article.title}
+        description={article.excerpt}
+        image={article.featuredImage}
+        type="article"
+        article={{
+          author: article.author,
+          publishedTime: article.publishedAt ? new Date(article.publishedAt).toISOString() : undefined,
+          tags: article.tags,
+        }}
+      />
       <Link to="/" className="inline-flex items-center gap-1 text-text-secondary hover:text-primary mb-6 text-sm transition-colors">
         <ArrowLeft className="w-4 h-4" />
         Back to Home
