@@ -29,7 +29,7 @@ function readLocal(): Article[] {
     const data = JSON.parse(raw) as Article[]
     return data.map((a) => ({
       ...a,
-      contentType: a.contentType || (a.category === 'opinion' ? 'opinion' : 'news'),
+      contentType: a.contentType || ((a.category as string) === 'opinion' ? 'opinion' : 'news'),
     }))
   } catch {
     return []
