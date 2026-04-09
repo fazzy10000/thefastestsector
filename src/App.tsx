@@ -12,6 +12,7 @@ import AdminLogin from './pages/admin/AdminLogin'
 import Dashboard from './pages/admin/Dashboard'
 import ArticleEditor from './pages/admin/ArticleEditor'
 import AdminSettings from './pages/admin/AdminSettings'
+import ImageToolsPage from './pages/admin/ImageToolsPage'
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/admin/new" element={<ArticleEditor />} />
           <Route path="/admin/edit/:id" element={<ArticleEditor />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
+          <Route path="/admin/image-tools" element={<ImageToolsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

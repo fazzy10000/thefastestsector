@@ -10,6 +10,7 @@ import { useImageUpload } from '../../hooks/useImageUpload'
 import { CATEGORY_LABELS, CONTENT_TYPE_LABELS } from '../../lib/types'
 import type { Article, Category, ContentType } from '../../lib/types'
 import SEOPanel from '../../components/admin/SEOPanel'
+import ImageTools from '../../components/admin/ImageTools'
 import {
   Save,
   Eye,
@@ -26,6 +27,7 @@ import {
   Redo,
   Upload,
   ArrowLeft,
+  SlidersHorizontal,
 } from 'lucide-react'
 
 function slugify(text: string) {
@@ -59,6 +61,7 @@ export default function ArticleEditor() {
   const [focusKeyphrase, setFocusKeyphrase] = useState('')
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
+  const [showImageTools, setShowImageTools] = useState(false)
 
   const editor = useEditor({
     extensions: [
@@ -319,12 +322,21 @@ export default function ArticleEditor() {
             {featuredImage ? (
               <div className="relative group">
                 <img src={featuredImage} alt="" className="w-full h-40 object-cover rounded-lg" />
-                <button
-                  onClick={() => setFeaturedImage('')}
-                  className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                >
-                  ✕
-                </button>
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => setShowImageTools(true)}
+                    className="p-1.5 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+                    title="Edit image"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setFeaturedImage('')}
+                    className="p-1.5 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors text-xs"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             ) : (
               <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-primary transition-colors">
@@ -425,6 +437,31 @@ export default function ArticleEditor() {
           </div>
         </div>
       </div>
+
+      {/* Image Tools Modal */}
+      {showImageTools && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-gray-900">Edit Featured Image</h2>
+              <button
+                onClick={() => setShowImageTools(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <ImageTools
+              initialSrc={featuredImage}
+              onApply={(dataUrl) => {
+                setFeaturedImage(dataUrl)
+                setShowImageTools(false)
+              }}
+              compact
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
