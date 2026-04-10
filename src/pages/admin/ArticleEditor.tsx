@@ -133,7 +133,8 @@ export default function ArticleEditor() {
 
     try {
       if (isEditing && id) {
-        await updateArticle(id, { ...data, createdAt: undefined } as Partial<Article>)
+        const { createdAt: _, ...updateData } = data
+        await updateArticle(id, updateData as Partial<Article>)
       } else {
         await createArticle(data)
       }

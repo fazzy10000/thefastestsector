@@ -20,18 +20,24 @@ import type { Article, Category } from '../lib/types'
 const COLLECTION = 'articles'
 const LS_KEY = 'tfs_articles'
 const LS_VERSION_KEY = 'tfs_articles_v'
-const CURRENT_VERSION = '2'
+const CURRENT_VERSION = '3'
 
 function readLocal(): Article[] {
   try {
     const raw = localStorage.getItem(LS_KEY)
     if (!raw) return []
     const data = JSON.parse(raw) as Article[]
-    return data.map((a) => ({
-      ...a,
-      contentType: a.contentType || ((a.category as string) === 'opinion' ? 'opinion' : 'news'),
-    }))
+    return data
+      .filter((a) => a && a.id && a.title && typeof a.createdAt === 'number')
+      .map((a) => ({
+        ...a,
+        contentType: a.contentType || ((a.category as string) === 'opinion' ? 'opinion' : 'news'),
+        createdAt: a.createdAt || Date.now(),
+        updatedAt: a.updatedAt || Date.now(),
+      }))
   } catch {
+    localStorage.removeItem(LS_KEY)
+    localStorage.removeItem(LS_VERSION_KEY)
     return []
   }
 }

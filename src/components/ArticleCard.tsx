@@ -9,10 +9,17 @@ interface ArticleCardProps {
   variant?: 'default' | 'hero' | 'compact'
 }
 
+function safeTimeAgo(ts: number | null | undefined): string {
+  if (!ts || isNaN(ts)) return ''
+  try {
+    return formatDistanceToNow(new Date(ts), { addSuffix: true })
+  } catch {
+    return ''
+  }
+}
+
 export default function ArticleCard({ article, variant = 'default' }: ArticleCardProps) {
-  const timeAgo = article.publishedAt
-    ? formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true })
-    : formatDistanceToNow(new Date(article.createdAt), { addSuffix: true })
+  const timeAgo = safeTimeAgo(article.publishedAt ?? article.createdAt)
 
   if (variant === 'hero') {
     return (

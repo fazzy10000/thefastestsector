@@ -179,7 +179,7 @@ export default function Dashboard() {
                     </button>
                   </td>
                   <td className="px-5 py-4 text-xs text-gray-400">
-                    {formatDistanceToNow(new Date(article.createdAt), { addSuffix: true })}
+                    {article.createdAt && !isNaN(article.createdAt) ? formatDistanceToNow(new Date(article.createdAt), { addSuffix: true }) : '—'}
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1">

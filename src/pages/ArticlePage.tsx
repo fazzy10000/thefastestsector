@@ -45,9 +45,11 @@ export default function ArticlePage() {
     )
   }
 
-  const timeAgo = article.publishedAt
-    ? formatDistanceToNow(new Date(article.publishedAt), { addSuffix: true })
-    : formatDistanceToNow(new Date(article.createdAt), { addSuffix: true })
+  const timeAgo = (() => {
+    const ts = article.publishedAt ?? article.createdAt
+    if (!ts || isNaN(ts)) return ''
+    try { return formatDistanceToNow(new Date(ts), { addSuffix: true }) } catch { return '' }
+  })()
 
   return (
     <article className="max-w-4xl mx-auto px-4 py-8">
