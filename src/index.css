@@ -43,6 +43,7 @@ body {
   outline: none;
   min-height: 300px;
   padding: 1rem;
+  color: #1a1a1a;
 }
 
 .tiptap p.is-editor-empty:first-child::before {

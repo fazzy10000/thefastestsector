@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import ScrollToTop from './components/ScrollToTop'
 import Layout from './components/Layout'
 import AdminLayout from './components/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -18,6 +19,7 @@ import AuthorManager from './pages/admin/AuthorManager'
 export default function App() {
   return (
     <BrowserRouter basename="/thefastestsector">
+      <ScrollToTop />
       <Routes>
         {/* Public pages */}
         <Route element={<Layout />}>
