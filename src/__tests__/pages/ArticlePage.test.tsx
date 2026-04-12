@@ -22,6 +22,7 @@ function makeArticle(overrides: Partial<Article> = {}): Article {
     authorId: '',
     status: 'published',
     featured: false,
+    scheduledAt: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     publishedAt: Date.now(),
@@ -46,7 +47,7 @@ describe('ArticlePage', () => {
 
   it('renders the article content when found', async () => {
     localStorage.setItem(LS_KEY, JSON.stringify([makeArticle()]))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     renderArticlePage('deep-dive')
 
@@ -59,7 +60,7 @@ describe('ArticlePage', () => {
 
   it('shows "Article Not Found" for unknown slug', async () => {
     localStorage.setItem(LS_KEY, JSON.stringify([]))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     renderArticlePage('nonexistent')
 
@@ -73,7 +74,7 @@ describe('ArticlePage', () => {
       LS_KEY,
       JSON.stringify([makeArticle({ tags: ['f1', 'racing'] })]),
     )
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     renderArticlePage('deep-dive')
 
@@ -88,7 +89,7 @@ describe('ArticlePage', () => {
       LS_KEY,
       JSON.stringify([makeArticle({ publishedAt: null })]),
     )
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     renderArticlePage('deep-dive')
 
@@ -102,7 +103,7 @@ describe('ArticlePage', () => {
       LS_KEY,
       JSON.stringify([makeArticle({ createdAt: NaN, publishedAt: null })]),
     )
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     renderArticlePage('deep-dive')
 
@@ -114,7 +115,7 @@ describe('ArticlePage', () => {
 
   it('renders featured image when present', async () => {
     localStorage.setItem(LS_KEY, JSON.stringify([makeArticle()]))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     renderArticlePage('deep-dive')
 
@@ -129,7 +130,7 @@ describe('ArticlePage', () => {
       LS_KEY,
       JSON.stringify([makeArticle({ featuredImage: '' })]),
     )
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     renderArticlePage('deep-dive')
 

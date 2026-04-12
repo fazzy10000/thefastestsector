@@ -22,6 +22,7 @@ function makeArticle(overrides: Partial<Article> = {}): Article {
     authorId: '',
     status: 'published',
     featured: false,
+    scheduledAt: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     publishedAt: Date.now(),
@@ -50,7 +51,7 @@ describe('CategoryPage', () => {
       makeArticle({ title: 'FE Article', category: 'formula-e' }),
     ]
     localStorage.setItem(LS_KEY, JSON.stringify(articles))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     renderCategoryPage('formula-1')
 
@@ -65,7 +66,7 @@ describe('CategoryPage', () => {
       LS_KEY,
       JSON.stringify([makeArticle({ category: 'formula-1' })]),
     )
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     renderCategoryPage('formula-1')
 
@@ -83,7 +84,7 @@ describe('CategoryPage', () => {
       makeArticle({ title: 'Opinion Item', category: 'formula-1', contentType: 'opinion' }),
     ]
     localStorage.setItem(LS_KEY, JSON.stringify(articles))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     renderCategoryPage('formula-1')
 
@@ -101,7 +102,7 @@ describe('CategoryPage', () => {
 
   it('shows empty state when no articles in category', async () => {
     localStorage.setItem(LS_KEY, JSON.stringify([]))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     renderCategoryPage('indycar')
 

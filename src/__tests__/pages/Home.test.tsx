@@ -22,6 +22,7 @@ function makeArticle(overrides: Partial<Article> = {}): Article {
     authorId: '',
     status: 'published',
     featured: false,
+    scheduledAt: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     publishedAt: Date.now(),
@@ -39,7 +40,7 @@ describe('Home page', () => {
       makeArticle({ title: 'Visible Article', status: 'published' }),
     ]
     localStorage.setItem(LS_KEY, JSON.stringify(articles))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     render(
       <MemoryRouter>
@@ -58,7 +59,7 @@ describe('Home page', () => {
       makeArticle({ title: 'Draft Only', status: 'draft' }),
     ]
     localStorage.setItem(LS_KEY, JSON.stringify(articles))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     render(
       <MemoryRouter>
@@ -76,7 +77,7 @@ describe('Home page', () => {
       makeArticle({ title: 'Featured Hero', featured: true }),
     ]
     localStorage.setItem(LS_KEY, JSON.stringify(articles))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     render(
       <MemoryRouter>
@@ -91,7 +92,7 @@ describe('Home page', () => {
 
   it('renders empty state without crashing when no articles exist', async () => {
     localStorage.setItem(LS_KEY, JSON.stringify([]))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     render(
       <MemoryRouter>
@@ -114,7 +115,7 @@ describe('Home page', () => {
       makeArticle({ title: 'Good Article', createdAt: Date.now() }),
     ]
     localStorage.setItem(LS_KEY, JSON.stringify(articles))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     render(
       <MemoryRouter>

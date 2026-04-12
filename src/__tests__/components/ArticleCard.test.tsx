@@ -19,6 +19,7 @@ function makeArticle(overrides: Partial<Article> = {}): Article {
     authorId: '',
     status: 'published',
     featured: false,
+    scheduledAt: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     publishedAt: Date.now(),

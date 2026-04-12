@@ -7,7 +7,7 @@ import type { Article } from '../../lib/types'
 
 const LS_KEY = 'tfs_articles'
 const LS_VERSION_KEY = 'tfs_articles_v'
-const CURRENT_VERSION = '4'
+const CURRENT_VERSION = '6'
 
 function seedArticles(articles: Article[]) {
   localStorage.setItem(LS_KEY, JSON.stringify(articles))
@@ -95,7 +95,8 @@ describe('ReadNext', () => {
 
   it('shows category link with correct label', () => {
     seedArticles(SAMPLE_ARTICLES)
-    const current = SAMPLE_ARTICLES[0] // formula-1
+    const f1Articles = SAMPLE_ARTICLES.filter((a) => a.category === 'formula-1')
+    const current = f1Articles[0]
 
     render(
       <MemoryRouter>

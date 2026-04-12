@@ -24,6 +24,7 @@ function makeNewArticle(overrides: Partial<Article> = {}): Omit<Article, 'id'> {
     authorId: '',
     status: 'published',
     featured: false,
+    scheduledAt: null,
     createdAt: Date.now(),
     updatedAt: Date.now(),
     publishedAt: Date.now(),
@@ -141,7 +142,7 @@ describe('publish flow integration', () => {
 
   it('deleting an article removes it from homepage', async () => {
     localStorage.setItem(LS_KEY, JSON.stringify([]))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     const { result: articles } = renderHook(() => useArticles())
 
@@ -169,7 +170,7 @@ describe('publish flow integration', () => {
 
   it('toggling article status between draft/published works', async () => {
     localStorage.setItem(LS_KEY, JSON.stringify([]))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     const { result: articles } = renderHook(() => useArticles())
 
@@ -210,7 +211,7 @@ describe('data corruption recovery', () => {
 
   it('app recovers from completely corrupted localStorage', async () => {
     localStorage.setItem(LS_KEY, '!!!not json!!!')
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     render(
       <MemoryRouter>
@@ -244,7 +245,7 @@ describe('data corruption recovery', () => {
     }
 
     localStorage.setItem(LS_KEY, JSON.stringify([corruptArticle]))
-    localStorage.setItem(LS_VERSION_KEY, '4')
+    localStorage.setItem(LS_VERSION_KEY, '6')
 
     render(
       <MemoryRouter>

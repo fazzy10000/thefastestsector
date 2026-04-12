@@ -24,9 +24,9 @@ describe('useAuthors', () => {
 
   it('getAuthor returns an author by ID', async () => {
     const { result } = renderHook(() => useAuthors())
-    const found = await result.current.getAuthor('author-james')
+    const found = await result.current.getAuthor('elliejournalisedaily')
     expect(found).not.toBeNull()
-    expect(found!.name).toBe("James O'Connor")
+    expect(found!.name).toBe('Ellie Roddy | Motorsports Writer')
   })
 
   it('getAuthor returns null for unknown ID', async () => {
@@ -37,9 +37,9 @@ describe('useAuthors', () => {
 
   it('getAuthorByName finds by case-insensitive name', async () => {
     const { result } = renderHook(() => useAuthors())
-    const found = await result.current.getAuthorByName('divisha rai')
+    const found = await result.current.getAuthorByName('leslie')
     expect(found).not.toBeNull()
-    expect(found!.id).toBe('author-divisha')
+    expect(found!.id).toBe('sportswithleslie')
   })
 
   it('saveAuthor creates a new author', async () => {
@@ -64,13 +64,13 @@ describe('useAuthors', () => {
 
   it('saveAuthor updates an existing author', async () => {
     const { result } = renderHook(() => useAuthors())
-    const original = await result.current.getAuthor('author-james')
+    const original = await result.current.getAuthor('elliejournalisedaily')
 
     await act(async () => {
       await result.current.saveAuthor({ ...original!, bio: 'Updated bio' })
     })
 
-    const updated = await result.current.getAuthor('author-james')
+    const updated = await result.current.getAuthor('elliejournalisedaily')
     expect(updated!.bio).toBe('Updated bio')
     expect(result.current.authors.length).toBe(SAMPLE_AUTHORS.length)
   })
@@ -79,11 +79,11 @@ describe('useAuthors', () => {
     const { result } = renderHook(() => useAuthors())
 
     await act(async () => {
-      await result.current.removeAuthor('author-james')
+      await result.current.removeAuthor('elliejournalisedaily')
     })
 
     expect(result.current.authors.length).toBe(SAMPLE_AUTHORS.length - 1)
-    const found = await result.current.getAuthor('author-james')
+    const found = await result.current.getAuthor('elliejournalisedaily')
     expect(found).toBeNull()
   })
 
