@@ -132,7 +132,7 @@ export default function InviteSignup() {
     <div className="min-h-screen flex items-center justify-center bg-surface-dark">
       <div className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <img src="/thefastestsector/tfs-logo.png" alt="TFS" className="w-16 h-16 rounded-full mx-auto mb-4" />
+          <img src="/tfs-logo.png" alt="TFS" className="w-16 h-16 rounded-full mx-auto mb-4" />
           <h1 className="text-3xl font-black text-white">
             <span className="text-primary">TFS</span> Admin
           </h1>

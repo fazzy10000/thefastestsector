@@ -49,7 +49,7 @@ export default function Navbar() {
             </a>
           </div>
           <Link to="/" className="flex items-center gap-2">
-            <img src="/thefastestsector/tfs-logo.png" alt="TFS" className="w-8 h-8 rounded-full" />
+            <img src="/tfs-logo.png" alt="TFS" className="w-8 h-8 rounded-full" />
             <span className="text-lg font-black tracking-tight hidden sm:inline">
               The Fastest <span className="text-primary">Sector</span>
             </span>

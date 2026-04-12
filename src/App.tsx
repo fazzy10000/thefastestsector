@@ -29,7 +29,7 @@ import NotFound from './pages/NotFound'
 
 export default function App() {
   return (
-    <BrowserRouter basename="/thefastestsector">
+    <BrowserRouter>
       <ScrollToTop />
       <Routes>
         {/* Public pages */}

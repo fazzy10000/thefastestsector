@@ -80,7 +80,7 @@ export default function TeamManager() {
     if (!inviteEmail.trim()) return
     const createdBy = user?.email || 'admin'
     const invite = await createInvite(inviteEmail.trim(), inviteRole, createdBy)
-    const base = window.location.origin + '/thefastestsector'
+    const base = window.location.origin
     setInviteLink(`${base}/admin/signup?token=${invite.id}`)
     setInviteEmail('')
   }

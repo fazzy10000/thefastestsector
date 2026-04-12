@@ -38,7 +38,7 @@ export default function AdminLayout() {
     <>
       <div className="p-5 border-b border-white/10 flex items-center justify-between">
         <Link to="/admin" className="flex items-center gap-2 text-xl font-black" onClick={() => setSidebarOpen(false)}>
-          <img src="/thefastestsector/tfs-logo.png" alt="TFS" className="w-7 h-7 rounded-full" />
+          <img src="/tfs-logo.png" alt="TFS" className="w-7 h-7 rounded-full" />
           <span><span className="text-primary">TFS</span> Admin</span>
         </Link>
         <button
@@ -98,7 +98,7 @@ export default function AdminLayout() {
       {/* Mobile top bar */}
       <div className="fixed top-0 left-0 right-0 z-40 md:hidden bg-surface-dark flex items-center justify-between px-4 py-3">
         <Link to="/admin" className="flex items-center gap-2 text-lg font-black text-white">
-          <img src="/thefastestsector/tfs-logo.png" alt="TFS" className="w-6 h-6 rounded-full" />
+          <img src="/tfs-logo.png" alt="TFS" className="w-6 h-6 rounded-full" />
           <span><span className="text-primary">TFS</span> Admin</span>
         </Link>
         <button

@@ -257,7 +257,7 @@ export default function SEODashboard() {
               type="url"
               value={form.canonicalUrlBase}
               onChange={(e) => setForm((p) => ({ ...p, canonicalUrlBase: e.target.value }))}
-              placeholder="https://yoursite.com/thefastestsector"
+              placeholder="https://thefastestsector.com"
               className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-primary"
             />
           </div>

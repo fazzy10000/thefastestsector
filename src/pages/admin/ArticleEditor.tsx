@@ -193,7 +193,7 @@ export default function ArticleEditor() {
 
   const handlePreview = () => {
     if (slug) {
-      window.open(`${window.location.origin}/thefastestsector/article/${slug || slugify(title)}?preview=true`, '_blank')
+      window.open(`${window.location.origin}/article/${slug || slugify(title)}?preview=true`, '_blank')
     }
   }
 

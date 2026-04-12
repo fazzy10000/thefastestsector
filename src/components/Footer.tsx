@@ -11,7 +11,7 @@ export default function Footer() {
         <div className="grid md:grid-cols-2 gap-10">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <img src="/thefastestsector/tfs-logo.png" alt="TFS" className="w-10 h-10 rounded-full" />
+              <img src="/tfs-logo.png" alt="TFS" className="w-10 h-10 rounded-full" />
               <h3 className="text-xl font-bold">Our Story</h3>
             </div>
             <p className="text-white/70 leading-relaxed text-sm">{settings.ourStory}</p>
