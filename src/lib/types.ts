@@ -6,6 +6,16 @@ export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
   opinion: 'Opinion',
 }
 
+export interface Author {
+  id: string
+  name: string
+  bio: string
+  avatar: string
+  twitter: string
+  instagram: string
+  linkedin: string
+}
+
 export interface Article {
   id: string
   title: string
@@ -17,6 +27,7 @@ export interface Article {
   contentType: ContentType
   tags: string[]
   author: string
+  authorId: string
   status: 'draft' | 'published'
   featured: boolean
   createdAt: number

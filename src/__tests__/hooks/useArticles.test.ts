@@ -18,6 +18,7 @@ function makeArticle(overrides: Partial<Article> = {}): Omit<Article, 'id'> {
     contentType: 'news' as ContentType,
     tags: ['test'],
     author: 'Tester',
+    authorId: '',
     status: 'published',
     featured: false,
     createdAt: Date.now(),
@@ -47,7 +48,7 @@ describe('useArticles', () => {
       await act(async () => {
         await result.current.fetchArticles()
       })
-      expect(localStorage.getItem(LS_VERSION_KEY)).toBe('3')
+      expect(localStorage.getItem(LS_VERSION_KEY)).toBe('4')
     })
 
     it('re-seeds when version changes', async () => {
@@ -67,7 +68,7 @@ describe('useArticles', () => {
     it('preserves existing data when version matches', async () => {
       const custom = [{ ...makeArticle({ title: 'My Article' }), id: 'custom-1' }]
       localStorage.setItem(LS_KEY, JSON.stringify(custom))
-      localStorage.setItem(LS_VERSION_KEY, '3')
+      localStorage.setItem(LS_VERSION_KEY, '4')
 
       const { result } = renderHook(() => useArticles())
       await act(async () => {
@@ -237,7 +238,7 @@ describe('useArticles', () => {
     })
 
     it('sorts by createdAt descending', async () => {
-      localStorage.setItem(LS_VERSION_KEY, '3')
+      localStorage.setItem(LS_VERSION_KEY, '4')
       localStorage.setItem(LS_KEY, JSON.stringify([]))
 
       const { result } = renderHook(() => useArticles())
@@ -264,7 +265,7 @@ describe('useArticles', () => {
         { id: 'ok', title: 'Has ID', slug: 'has-id', createdAt: Date.now() },
       ]
       localStorage.setItem(LS_KEY, JSON.stringify(corrupt))
-      localStorage.setItem(LS_VERSION_KEY, '3')
+      localStorage.setItem(LS_VERSION_KEY, '4')
 
       const { result } = renderHook(() => useArticles())
       let articles: Article[] = []
@@ -282,7 +283,7 @@ describe('useArticles', () => {
         { id: '2', title: 'Good', slug: 'good', createdAt: Date.now() },
       ]
       localStorage.setItem(LS_KEY, JSON.stringify(corrupt))
-      localStorage.setItem(LS_VERSION_KEY, '3')
+      localStorage.setItem(LS_VERSION_KEY, '4')
 
       const { result } = renderHook(() => useArticles())
       let articles: Article[] = []
@@ -300,7 +301,7 @@ describe('useArticles', () => {
         { id: '2', title: 'Good', slug: 'good', createdAt: Date.now() },
       ]
       localStorage.setItem(LS_KEY, JSON.stringify(corrupt))
-      localStorage.setItem(LS_VERSION_KEY, '3')
+      localStorage.setItem(LS_VERSION_KEY, '4')
 
       const { result } = renderHook(() => useArticles())
       let articles: Article[] = []
@@ -313,7 +314,7 @@ describe('useArticles', () => {
 
     it('clears localStorage on JSON parse failure', async () => {
       localStorage.setItem(LS_KEY, 'not valid json{{{')
-      localStorage.setItem(LS_VERSION_KEY, '3')
+      localStorage.setItem(LS_VERSION_KEY, '4')
 
       const { result } = renderHook(() => useArticles())
       await act(async () => {
@@ -328,7 +329,7 @@ describe('useArticles', () => {
         { id: '1', title: 'Old', slug: 'old', category: 'formula-1', createdAt: Date.now(), updatedAt: Date.now() },
       ]
       localStorage.setItem(LS_KEY, JSON.stringify(legacy))
-      localStorage.setItem(LS_VERSION_KEY, '3')
+      localStorage.setItem(LS_VERSION_KEY, '4')
 
       const { result } = renderHook(() => useArticles())
       let articles: Article[] = []
@@ -342,7 +343,7 @@ describe('useArticles', () => {
     it('handles null entries in the array', async () => {
       const corrupt = [null, undefined, { id: '1', title: 'Valid', createdAt: Date.now() }]
       localStorage.setItem(LS_KEY, JSON.stringify(corrupt))
-      localStorage.setItem(LS_VERSION_KEY, '3')
+      localStorage.setItem(LS_VERSION_KEY, '4')
 
       const { result } = renderHook(() => useArticles())
       let articles: Article[] = []
@@ -358,7 +359,7 @@ describe('useArticles', () => {
         { id: '1', title: 'Bad Edit', slug: 'bad-edit', category: 'formula-1', createdAt: undefined },
       ]
       localStorage.setItem(LS_KEY, JSON.stringify(corrupt))
-      localStorage.setItem(LS_VERSION_KEY, '3')
+      localStorage.setItem(LS_VERSION_KEY, '4')
 
       const { result } = renderHook(() => useArticles())
       let articles: Article[] = []

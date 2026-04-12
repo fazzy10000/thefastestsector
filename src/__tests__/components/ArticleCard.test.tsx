@@ -16,6 +16,7 @@ function makeArticle(overrides: Partial<Article> = {}): Article {
     contentType: 'news',
     tags: ['tag1'],
     author: 'Test Author',
+    authorId: '',
     status: 'published',
     featured: false,
     createdAt: Date.now(),

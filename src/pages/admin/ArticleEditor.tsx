@@ -6,6 +6,7 @@ import ImageExtension from '@tiptap/extension-image'
 import LinkExtension from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useArticles } from '../../hooks/useArticles'
+import { useAuthors } from '../../hooks/useAuthors'
 import { useImageUpload } from '../../hooks/useImageUpload'
 import { CATEGORY_LABELS, CONTENT_TYPE_LABELS } from '../../lib/types'
 import type { Article, Category, ContentType } from '../../lib/types'
@@ -43,6 +44,7 @@ export default function ArticleEditor() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { getArticle, createArticle, updateArticle } = useArticles()
+  const { authors } = useAuthors()
   const { uploadImage, uploading } = useImageUpload()
   const isEditing = Boolean(id)
 
@@ -53,6 +55,7 @@ export default function ArticleEditor() {
   const [contentType, setContentType] = useState<ContentType>('news')
   const [tags, setTags] = useState('')
   const [author, setAuthor] = useState('')
+  const [authorId, setAuthorId] = useState('')
   const [featuredImage, setFeaturedImage] = useState('')
   const [status, setStatus] = useState<'draft' | 'published'>('draft')
   const [featured, setFeatured] = useState(false)
@@ -84,6 +87,7 @@ export default function ArticleEditor() {
           setContentType(article.contentType || 'news')
           setTags(article.tags.join(', '))
           setAuthor(article.author)
+          setAuthorId(article.authorId || '')
           setFeaturedImage(article.featuredImage)
           setStatus(article.status)
           setFeatured(article.featured)
@@ -124,6 +128,7 @@ export default function ArticleEditor() {
       contentType,
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       author: author.trim(),
+      authorId,
       status: finalStatus,
       featured,
       createdAt: Date.now(),
@@ -401,13 +406,29 @@ export default function ArticleEditor() {
           {/* Author */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">
             <h3 className="font-semibold text-gray-900 text-sm mb-3">Author</h3>
-            <input
-              type="text"
-              value={author}
-              onChange={(e) => setAuthor(e.target.value)}
-              placeholder="Author name"
+            <select
+              value={authorId}
+              onChange={(e) => {
+                const sel = authors.find((a) => a.id === e.target.value)
+                setAuthorId(e.target.value)
+                if (sel) setAuthor(sel.name)
+              }}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-primary"
-            />
+            >
+              <option value="">Select an author...</option>
+              {authors.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+            {!authorId && (
+              <input
+                type="text"
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                placeholder="Or type a name"
+                className="w-full mt-2 px-3 py-2 border border-gray-200 rounded-lg text-xs text-gray-500 focus:outline-none focus:border-primary"
+              />
+            )}
           </div>
 
           {/* Tags */}

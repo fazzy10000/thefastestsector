@@ -7,11 +7,13 @@ import {
   LogOut,
   Home,
   ImageIcon,
+  Users,
 } from 'lucide-react'
 
 const NAV = [
   { label: 'Dashboard', path: '/admin', icon: LayoutDashboard },
   { label: 'New Article', path: '/admin/new', icon: PlusCircle },
+  { label: 'Authors', path: '/admin/authors', icon: Users },
   { label: 'Image Tools', path: '/admin/image-tools', icon: ImageIcon },
   { label: 'Settings', path: '/admin/settings', icon: Settings },
 ]

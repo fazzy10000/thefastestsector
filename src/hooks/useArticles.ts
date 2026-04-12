@@ -20,7 +20,7 @@ import type { Article, Category } from '../lib/types'
 const COLLECTION = 'articles'
 const LS_KEY = 'tfs_articles'
 const LS_VERSION_KEY = 'tfs_articles_v'
-const CURRENT_VERSION = '3'
+const CURRENT_VERSION = '4'
 
 function readLocal(): Article[] {
   try {
@@ -32,6 +32,7 @@ function readLocal(): Article[] {
       .map((a) => ({
         ...a,
         contentType: a.contentType || ((a.category as string) === 'opinion' ? 'opinion' : 'news'),
+        authorId: a.authorId || '',
         createdAt: a.createdAt || Date.now(),
         updatedAt: a.updatedAt || Date.now(),
       }))

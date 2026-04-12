@@ -4,6 +4,8 @@ import { formatDistanceToNow } from 'date-fns'
 import { ArrowLeft, Clock, User } from 'lucide-react'
 import { useArticles } from '../hooks/useArticles'
 import SEO from '../components/SEO'
+import AuthorBlock from '../components/AuthorBlock'
+import ReadNext from '../components/ReadNext'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/types'
 import type { Article } from '../lib/types'
 
@@ -116,6 +118,9 @@ export default function ArticlePage() {
           </div>
         </div>
       )}
+
+      <AuthorBlock authorId={article.authorId} authorName={article.author} />
+      <ReadNext current={article} />
     </article>
   )
 }
