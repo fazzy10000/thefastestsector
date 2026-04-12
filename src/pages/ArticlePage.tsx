@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useSearchParams } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
-import { ArrowLeft, Clock, User } from 'lucide-react'
+import { ArrowLeft, Clock, User, AlertTriangle } from 'lucide-react'
 import { useArticles } from '../hooks/useArticles'
+import { useAuth } from '../hooks/useAuth'
+import RacingLoader from '../components/RacingLoader'
 import SEO from '../components/SEO'
 import AuthorBlock from '../components/AuthorBlock'
 import ReadNext from '../components/ReadNext'
@@ -11,29 +13,31 @@ import type { Article } from '../lib/types'
 
 export default function ArticlePage() {
   const { slug } = useParams<{ slug: string }>()
+  const [searchParams] = useSearchParams()
+  const isPreview = searchParams.get('preview') === 'true'
   const { getArticleBySlug } = useArticles()
+  const { isAuthenticated } = useAuth()
   const [article, setArticle] = useState<Article | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       if (!slug) return
-      const found = await getArticleBySlug(slug)
-      setArticle(found)
+      const found = await getArticleBySlug(slug, isPreview && isAuthenticated)
+      if (found && found.status !== 'published' && !(isPreview && isAuthenticated)) {
+        setArticle(null)
+      } else {
+        setArticle(found)
+      }
       setLoading(false)
     }
     load()
-  }, [slug, getArticleBySlug])
+  }, [slug, getArticleBySlug, isPreview, isAuthenticated])
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-3/4 mx-auto" />
-          <div className="h-64 bg-gray-200 rounded" />
-          <div className="h-4 bg-gray-200 rounded w-full" />
-          <div className="h-4 bg-gray-200 rounded w-5/6" />
-        </div>
+      <div className="max-w-4xl mx-auto px-4 py-16">
+        <RacingLoader message="Fetching article..." />
       </div>
     )
   }
@@ -66,6 +70,14 @@ export default function ArticlePage() {
           tags: article.tags,
         }}
       />
+
+      {isPreview && article.status !== 'published' && (
+        <div className="mb-6 flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+          <span>You are viewing a <strong>{article.status}</strong> preview. This article is not publicly visible.</span>
+        </div>
+      )}
+
       <Link to="/" className="inline-flex items-center gap-1 text-text-secondary hover:text-primary mb-6 text-sm transition-colors">
         <ArrowLeft className="w-4 h-4" />
         Back to Home

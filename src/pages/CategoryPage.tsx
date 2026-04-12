@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import ArticleCard from '../components/ArticleCard'
+import RacingLoader from '../components/RacingLoader'
 import { useArticles } from '../hooks/useArticles'
 import SEO from '../components/SEO'
 import { CATEGORY_LABELS, CONTENT_TYPE_LABELS } from '../lib/types'
@@ -62,15 +63,7 @@ export default function CategoryPage() {
       </div>
 
       {loading ? (
-        <div className="grid md:grid-cols-2 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="animate-pulse">
-              <div className="aspect-[16/10] bg-gray-200 dark:bg-white/10 rounded-xl mb-4" />
-              <div className="h-5 bg-gray-200 dark:bg-white/10 rounded w-3/4 mb-2" />
-              <div className="h-4 bg-gray-200 dark:bg-white/10 rounded w-1/2" />
-            </div>
-          ))}
-        </div>
+        <RacingLoader message={`Loading ${label} articles...`} />
       ) : filtered.length === 0 ? (
         <p className="text-text-secondary dark:text-white/50 text-center py-16">
           No {CONTENT_TYPE_LABELS[activeTab].toLowerCase()} articles found in {label} yet.
