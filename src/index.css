@@ -77,6 +77,44 @@ body {
   text-decoration: underline;
 }
 
+/* Checkerboard background for transparency preview */
+.checkerboard-bg {
+  background-image:
+    linear-gradient(45deg, #e0e0e0 25%, transparent 25%),
+    linear-gradient(-45deg, #e0e0e0 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e0e0e0 75%),
+    linear-gradient(-45deg, transparent 75%, #e0e0e0 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+/* Hero carousel progress bar */
+@keyframes carouselProgress {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+.carousel-progress {
+  animation: carouselProgress linear forwards;
+}
+
+/* Racing loader animations */
+@keyframes racingCar {
+  0% { left: -24px; opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { left: calc(100% + 24px); opacity: 0; }
+}
+
+@keyframes racingPulse {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+
+.racing-car {
+  animation: racingCar 1.4s ease-in-out infinite;
+}
+
 .article-content h1 { font-size: 2rem; font-weight: 700; margin: 1.5rem 0 1rem; }
 .article-content h2 { font-size: 1.5rem; font-weight: 600; margin: 1.25rem 0 0.75rem; }
 .article-content h3 { font-size: 1.25rem; font-weight: 600; margin: 1rem 0 0.5rem; }
