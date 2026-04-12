@@ -20,7 +20,7 @@ import type { Article, Category } from '../lib/types'
 const COLLECTION = 'articles'
 const LS_KEY = 'tfs_articles'
 const LS_VERSION_KEY = 'tfs_articles_v'
-const CURRENT_VERSION = '4'
+const CURRENT_VERSION = '6'
 
 function readLocal(): Article[] {
   try {
@@ -33,6 +33,7 @@ function readLocal(): Article[] {
         ...a,
         contentType: a.contentType || ((a.category as string) === 'opinion' ? 'opinion' : 'news'),
         authorId: a.authorId || '',
+        scheduledAt: a.scheduledAt ?? null,
         createdAt: a.createdAt || Date.now(),
         updatedAt: a.updatedAt || Date.now(),
       }))
@@ -60,14 +61,30 @@ export function useArticles() {
 
   const fetchArticles = useCallback(async (opts?: {
     category?: Category
-    status?: 'draft' | 'published'
+    status?: 'draft' | 'published' | 'scheduled'
     limit?: number
     featured?: boolean
   }) => {
     if (!isFirebaseConfigured || !db) {
       initLocalIfEmpty()
       let data = readLocal()
-      if (opts?.status) data = data.filter((a) => a.status === opts.status)
+      const now = Date.now()
+      let dirty = false
+      data = data.map((a) => {
+        if (a.status === 'scheduled' && a.scheduledAt && a.scheduledAt <= now) {
+          dirty = true
+          return { ...a, status: 'published' as const, publishedAt: a.scheduledAt }
+        }
+        return a
+      })
+      if (dirty) writeLocal(data)
+      if (opts?.status === 'published') {
+        data = data.filter((a) => a.status === 'published')
+      } else if (opts?.status === 'draft') {
+        data = data.filter((a) => a.status === 'draft')
+      } else if (opts?.status) {
+        data = data.filter((a) => a.status === opts.status)
+      }
       if (opts?.category) data = data.filter((a) => a.category === opts.category)
       if (opts?.featured !== undefined) data = data.filter((a) => a.featured === opts.featured)
       data.sort((a, b) => b.createdAt - a.createdAt)
@@ -80,19 +97,29 @@ export function useArticles() {
     setLoading(true)
     try {
       const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')]
-      if (opts?.status) constraints.push(where('status', '==', opts.status))
       if (opts?.category) constraints.push(where('category', '==', opts.category))
-      if (opts?.featured !== undefined) constraints.push(where('featured', '==', opts.featured))
       if (opts?.limit) constraints.push(fbLimit(opts.limit))
 
       const q = query(collection(db, COLLECTION), ...constraints)
       const snapshot = await getDocs(q)
-      const data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Article))
+      let data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Article))
+
+      if (opts?.status) data = data.filter((a) => a.status === opts.status)
+      if (opts?.featured !== undefined) data = data.filter((a) => a.featured === opts.featured)
+
       setArticles(data)
       return data
     } catch (err) {
-      console.error('Error fetching articles:', err)
-      return []
+      console.error('Error fetching articles from Firestore:', err)
+      initLocalIfEmpty()
+      let data = readLocal()
+      if (opts?.status) data = data.filter((a) => a.status === opts.status)
+      if (opts?.category) data = data.filter((a) => a.category === opts.category)
+      if (opts?.featured !== undefined) data = data.filter((a) => a.featured === opts.featured)
+      data.sort((a, b) => b.createdAt - a.createdAt)
+      if (opts?.limit) data = data.slice(0, opts.limit)
+      setArticles(data)
+      return data
     } finally {
       setLoading(false)
     }
@@ -112,7 +139,7 @@ export function useArticles() {
     }
   }, [])
 
-  const getArticleBySlug = useCallback(async (slug: string): Promise<Article | null> => {
+  const getArticleBySlug = useCallback(async (slug: string, _includeUnpublished = false): Promise<Article | null> => {
     if (!isFirebaseConfigured || !db) {
       initLocalIfEmpty()
       return readLocal().find((a) => a.slug === slug) ?? null
@@ -124,7 +151,8 @@ export function useArticles() {
       const d = snapshot.docs[0]
       return { id: d.id, ...d.data() } as Article
     } catch {
-      return null
+      initLocalIfEmpty()
+      return readLocal().find((a) => a.slug === slug) ?? null
     }
   }, [])
 
