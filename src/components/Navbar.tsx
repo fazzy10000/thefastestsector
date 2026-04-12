@@ -9,6 +9,7 @@ const NAV_LINKS = [
   { label: 'Formula E', path: '/category/formula-e' },
   { label: 'IndyCar', path: '/category/indycar' },
   { label: 'Feeder Series', path: '/category/feeder-series' },
+  { label: 'Standings', path: '/standings' },
   { label: 'About', path: '/about' },
   { label: 'Contact', path: '/contact' },
 ]

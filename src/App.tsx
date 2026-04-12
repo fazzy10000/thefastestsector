@@ -9,6 +9,7 @@ import CategoryPage from './pages/CategoryPage'
 import SearchPage from './pages/SearchPage'
 import About from './pages/About'
 import Contact from './pages/Contact'
+import StandingsPage from './pages/StandingsPage'
 import AdminLogin from './pages/admin/AdminLogin'
 import Dashboard from './pages/admin/Dashboard'
 import ArticleEditor from './pages/admin/ArticleEditor'
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/article/:slug" element={<ArticlePage />} />
           <Route path="/category/:category" element={<CategoryPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/standings" element={<StandingsPage />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
         </Route>
