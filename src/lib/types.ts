@@ -28,11 +28,79 @@ export interface Article {
   tags: string[]
   author: string
   authorId: string
-  status: 'draft' | 'published'
+  status: 'draft' | 'published' | 'scheduled'
   featured: boolean
+  scheduledAt: number | null
   createdAt: number
   updatedAt: number
   publishedAt: number | null
+}
+
+export interface ArticleVersion {
+  content: string
+  title: string
+  excerpt: string
+  editedBy: string
+  editedAt: number
+}
+
+export type UserRole = 'admin' | 'editor' | 'author' | 'seo'
+
+/** Site-wide SEO config stored in Firestore `seo_settings/global` or localStorage `tfs_seo_settings`. */
+export interface GlobalSEOSettings {
+  defaultMetaTitleTemplate: string
+  defaultMetaDescription: string
+  ogImageUrl: string
+  googleAnalyticsId: string
+  canonicalUrlBase: string
+  /** `true` = allow indexing for that page type; `false` = noindex */
+  robotsDirectives: {
+    home: boolean
+    article: boolean
+    category: boolean
+    search: boolean
+    static: boolean
+  }
+}
+
+export const DEFAULT_SEO_SETTINGS: GlobalSEOSettings = {
+  defaultMetaTitleTemplate: '{page} | The Fastest Sector',
+  defaultMetaDescription: '',
+  ogImageUrl: '',
+  googleAnalyticsId: '',
+  canonicalUrlBase: '',
+  robotsDirectives: {
+    home: true,
+    article: true,
+    category: true,
+    search: false,
+    static: true,
+  },
+}
+
+/** Per-article overrides in Firestore `seo_overrides/{articleId}` or localStorage `tfs_seo_overrides`. */
+export interface ArticleSEOOverride {
+  metaTitle: string
+  metaDescription: string
+  focusKeyphrase: string
+  noIndex: boolean
+}
+
+export interface AppUser {
+  uid: string
+  email: string
+  displayName: string
+  role: UserRole
+  createdAt: number
+}
+
+export interface Invite {
+  id: string
+  email: string
+  role: UserRole
+  createdBy: string
+  createdAt: number
+  used: boolean
 }
 
 export type Category =
@@ -91,4 +159,39 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   },
   siteName: 'The Fastest Sector',
   siteTagline: 'Home of quick, quirky and reliable motorsport content.',
+}
+
+export interface RaceEvent {
+  id: string
+  name: string
+  circuit: string
+  location: string
+  country: string
+  countryCode: string
+  date: string // ISO date string
+  endDate: string
+  series: 'f1' | 'fe' | 'indycar' | 'f1-academy'
+  round: number
+  status: 'upcoming' | 'completed' | 'live'
+}
+
+export interface QuizQuestion {
+  id: string
+  question: string
+  options: string[]
+  correctIndex: number
+  explanation: string
+}
+
+export interface Quiz {
+  id: string
+  title: string
+  slug: string
+  description: string
+  category: Category
+  featuredImage: string
+  questions: QuizQuestion[]
+  status: 'draft' | 'published'
+  createdAt: number
+  updatedAt: number
 }
