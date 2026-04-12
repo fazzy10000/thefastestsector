@@ -10,6 +10,8 @@ const NAV_LINKS = [
   { label: 'IndyCar', path: '/category/indycar' },
   { label: 'Feeder Series', path: '/category/feeder-series' },
   { label: 'Standings', path: '/standings' },
+  { label: 'Quizzes', path: '/quizzes' },
+  { label: 'Schedule', path: '/schedule' },
   { label: 'About', path: '/about' },
   { label: 'Contact', path: '/contact' },
 ]
@@ -47,11 +49,19 @@ export default function Navbar() {
             </a>
           </div>
           <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl font-black tracking-tight">
-              <span className="text-primary">TFS</span>
+            <img src="/thefastestsector/tfs-logo.png" alt="TFS" className="w-8 h-8 rounded-full" />
+            <span className="text-lg font-black tracking-tight hidden sm:inline">
+              The Fastest <span className="text-primary">Sector</span>
             </span>
           </Link>
-          <div className="w-[72px]" />
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSearchOpen(!searchOpen)} className="p-1.5 hover:text-primary transition-colors hidden md:block">
+              <Search className="w-4 h-4" />
+            </button>
+            <button onClick={toggleDark} className="p-1.5 hover:text-primary transition-colors hidden md:block">
+              {dark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -72,15 +82,8 @@ export default function Navbar() {
             ))}
           </ul>
 
-          {/* Right side: search + dark mode */}
-          <div className="hidden md:flex items-center gap-3">
-            <button onClick={() => setSearchOpen(!searchOpen)} className="p-1.5 hover:text-primary transition-colors">
-              <Search className="w-5 h-5" />
-            </button>
-            <button onClick={toggleDark} className="p-1.5 hover:text-primary transition-colors">
-              {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-          </div>
+          {/* Spacer for flex layout */}
+          <div className="hidden md:block" />
 
           {/* Mobile hamburger */}
           <button className="md:hidden p-1.5" onClick={() => setMobileOpen(!mobileOpen)}>

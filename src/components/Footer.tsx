@@ -10,7 +10,10 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 py-12">
         <div className="grid md:grid-cols-2 gap-10">
           <div>
-            <h3 className="text-xl font-bold mb-4">Our Story</h3>
+            <div className="flex items-center gap-3 mb-4">
+              <img src="/thefastestsector/tfs-logo.png" alt="TFS" className="w-10 h-10 rounded-full" />
+              <h3 className="text-xl font-bold">Our Story</h3>
+            </div>
             <p className="text-white/70 leading-relaxed text-sm">{settings.ourStory}</p>
             <Link to="/about" className="inline-block mt-4 text-primary text-sm font-medium hover:underline">
               Meet the team
