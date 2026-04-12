@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow, format } from 'date-fns'
 import { useArticles } from '../../hooks/useArticles'
 import { CATEGORY_LABELS } from '../../lib/types'
 import type { Article } from '../../lib/types'
@@ -12,17 +12,18 @@ import {
   FileText,
   CheckCircle,
   Clock,
+  CalendarClock,
 } from 'lucide-react'
 
 export default function Dashboard() {
   const { fetchArticles, removeArticle, updateArticle } = useArticles()
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all')
+  const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all')
 
   const loadArticles = async () => {
     setLoading(true)
-    const opts = filter === 'all' ? {} : { status: filter as 'published' | 'draft' }
+    const opts = filter === 'all' ? {} : { status: filter as 'published' | 'draft' | 'scheduled' }
     const data = await fetchArticles(opts)
     setArticles(data)
     setLoading(false)
@@ -43,6 +44,7 @@ export default function Dashboard() {
     await updateArticle(article.id, {
       status: newStatus,
       publishedAt: newStatus === 'published' ? Date.now() : null,
+      scheduledAt: null,
       updatedAt: Date.now(),
     })
     loadArticles()
@@ -50,17 +52,18 @@ export default function Dashboard() {
 
   const published = articles.filter((a) => a.status === 'published').length
   const drafts = articles.filter((a) => a.status === 'draft').length
+  const scheduled = articles.filter((a) => a.status === 'scheduled').length
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-1">Manage your articles and content</p>
         </div>
         <Link
           to="/admin/new"
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
         >
           <PlusCircle className="w-4 h-4" />
           New Article
@@ -68,7 +71,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <div className="bg-white rounded-xl p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-blue-50 rounded-lg">
@@ -102,11 +105,22 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
+        <div className="bg-white rounded-xl p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-amber-50 rounded-lg">
+              <CalendarClock className="w-5 h-5 text-amber-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{scheduled}</p>
+              <p className="text-xs text-gray-500">Scheduled</p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-6 bg-white rounded-lg p-1 shadow-sm w-fit">
-        {(['all', 'published', 'draft'] as const).map((f) => (
+      <div className="flex items-center gap-1 mb-6 bg-white rounded-lg p-1 shadow-sm w-fit overflow-x-auto">
+        {(['all', 'published', 'draft', 'scheduled'] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
@@ -122,7 +136,7 @@ export default function Dashboard() {
       </div>
 
       {/* Article list */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
         {loading ? (
           <div className="p-8 text-center text-gray-400">Loading articles...</div>
         ) : articles.length === 0 ? (
@@ -130,7 +144,7 @@ export default function Dashboard() {
             No articles found. Create your first article!
           </div>
         ) : (
-          <table className="w-full">
+          <table className="w-full min-w-[600px]">
             <thead>
               <tr className="border-b border-gray-100">
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Title</th>
@@ -162,21 +176,35 @@ export default function Dashboard() {
                     <span className="text-xs text-gray-600">{CATEGORY_LABELS[article.category]}</span>
                   </td>
                   <td className="px-5 py-4">
-                    <button
-                      onClick={() => toggleStatus(article)}
-                      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                        article.status === 'published'
-                          ? 'bg-green-50 text-green-700'
-                          : 'bg-yellow-50 text-yellow-700'
-                      }`}
-                    >
-                      {article.status === 'published' ? (
-                        <CheckCircle className="w-3 h-3" />
-                      ) : (
-                        <Clock className="w-3 h-3" />
-                      )}
-                      {article.status}
-                    </button>
+                    {article.status === 'scheduled' ? (
+                      <div className="inline-flex flex-col">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+                          <CalendarClock className="w-3 h-3" />
+                          scheduled
+                        </span>
+                        {article.scheduledAt && (
+                          <span className="text-[10px] text-amber-600 mt-0.5">
+                            {format(new Date(article.scheduledAt), 'MMM d, h:mm a')}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => toggleStatus(article)}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                          article.status === 'published'
+                            ? 'bg-green-50 text-green-700'
+                            : 'bg-yellow-50 text-yellow-700'
+                        }`}
+                      >
+                        {article.status === 'published' ? (
+                          <CheckCircle className="w-3 h-3" />
+                        ) : (
+                          <Clock className="w-3 h-3" />
+                        )}
+                        {article.status}
+                      </button>
+                    )}
                   </td>
                   <td className="px-5 py-4 text-xs text-gray-400">
                     {article.createdAt && !isNaN(article.createdAt) ? formatDistanceToNow(new Date(article.createdAt), { addSuffix: true }) : '—'}

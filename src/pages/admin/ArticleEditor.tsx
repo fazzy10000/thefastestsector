@@ -7,7 +7,9 @@ import LinkExtension from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useArticles } from '../../hooks/useArticles'
 import { useAuthors } from '../../hooks/useAuthors'
+import { useAuth } from '../../hooks/useAuth'
 import { useImageUpload } from '../../hooks/useImageUpload'
+import { useVersions } from '../../hooks/useVersions'
 import { CATEGORY_LABELS, CONTENT_TYPE_LABELS } from '../../lib/types'
 import type { Article, Category, ContentType } from '../../lib/types'
 import SEOPanel from '../../components/admin/SEOPanel'
@@ -29,7 +31,12 @@ import {
   Upload,
   ArrowLeft,
   SlidersHorizontal,
+  History,
+  CalendarClock,
+  RotateCcw,
+  ExternalLink,
 } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
 
 function slugify(text: string) {
   return text
@@ -45,7 +52,9 @@ export default function ArticleEditor() {
   const navigate = useNavigate()
   const { getArticle, createArticle, updateArticle } = useArticles()
   const { authors } = useAuthors()
+  const { user } = useAuth()
   const { uploadImage, uploading } = useImageUpload()
+  const { versions, fetchVersions, saveVersion } = useVersions(id)
   const isEditing = Boolean(id)
 
   const [title, setTitle] = useState('')
@@ -57,14 +66,16 @@ export default function ArticleEditor() {
   const [author, setAuthor] = useState('')
   const [authorId, setAuthorId] = useState('')
   const [featuredImage, setFeaturedImage] = useState('')
-  const [status, setStatus] = useState<'draft' | 'published'>('draft')
+  const [status, setStatus] = useState<'draft' | 'published' | 'scheduled'>('draft')
   const [featured, setFeatured] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const [loadingArticle, setLoadingArticle] = useState(!!id)
   const [focusKeyphrase, setFocusKeyphrase] = useState('')
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
   const [showImageTools, setShowImageTools] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
 
   const editor = useEditor({
     extensions: [
@@ -91,12 +102,16 @@ export default function ArticleEditor() {
           setFeaturedImage(article.featuredImage)
           setStatus(article.status)
           setFeatured(article.featured)
+          if (article.scheduledAt) {
+            setScheduledAt(new Date(article.scheduledAt).toISOString().slice(0, 16))
+          }
           editor?.commands.setContent(article.content)
         }
         setLoadingArticle(false)
       })
+      fetchVersions()
     }
-  }, [id, getArticle, editor])
+  }, [id, getArticle, editor, fetchVersions])
 
   useEffect(() => {
     if (!isEditing && title) {
@@ -113,11 +128,28 @@ export default function ArticleEditor() {
     }
   }, [uploadImage, editor])
 
-  const handleSave = async (saveStatus?: 'draft' | 'published') => {
+  const handleSave = async (saveStatus?: 'draft' | 'published' | 'scheduled') => {
     if (!title.trim() || !editor) return
     setSaving(true)
 
     const finalStatus = saveStatus || status
+    const now = Date.now()
+
+    if (isEditing && id) {
+      const editedBy = user?.email || user?.displayName || 'demo'
+      await saveVersion({
+        content: editor.getHTML(),
+        title: title.trim(),
+        excerpt: excerpt.trim(),
+        editedBy,
+        editedAt: now,
+      })
+    }
+
+    const scheduledTimestamp = finalStatus === 'scheduled' && scheduledAt
+      ? new Date(scheduledAt).getTime()
+      : null
+
     const data: Omit<Article, 'id'> = {
       title: title.trim(),
       slug: slug || slugify(title),
@@ -131,9 +163,10 @@ export default function ArticleEditor() {
       authorId,
       status: finalStatus,
       featured,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      publishedAt: finalStatus === 'published' ? Date.now() : null,
+      scheduledAt: scheduledTimestamp,
+      createdAt: now,
+      updatedAt: now,
+      publishedAt: finalStatus === 'published' ? now : null,
     }
 
     try {
@@ -151,13 +184,26 @@ export default function ArticleEditor() {
     }
   }
 
+  const handleRestore = (version: { content: string; title: string; excerpt: string }) => {
+    setTitle(version.title)
+    setExcerpt(version.excerpt)
+    editor?.commands.setContent(version.content)
+    setShowHistory(false)
+  }
+
+  const handlePreview = () => {
+    if (slug) {
+      window.open(`${window.location.origin}/thefastestsector/article/${slug || slugify(title)}?preview=true`, '_blank')
+    }
+  }
+
   if (loadingArticle) {
     return <div className="text-gray-400 text-center py-16">Loading article...</div>
   }
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/admin')}
@@ -165,23 +211,43 @@ export default function ArticleEditor() {
           >
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
             {isEditing ? 'Edit Article' : 'New Article'}
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {isEditing && (
+            <button
+              onClick={handlePreview}
+              className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              <ExternalLink className="w-4 h-4" />
+              <span className="hidden sm:inline">Preview</span>
+            </button>
+          )}
+          {isEditing && (
+            <button
+              onClick={() => { setShowHistory(!showHistory); if (!showHistory) fetchVersions() }}
+              className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-sm font-medium transition-colors ${
+                showHistory ? 'border-primary text-primary bg-primary/5' : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <History className="w-4 h-4" />
+              <span className="hidden sm:inline">History</span>
+            </button>
+          )}
           <button
             onClick={() => handleSave('draft')}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            Save Draft
+            <span className="hidden sm:inline">Save</span> Draft
           </button>
           <button
             onClick={() => handleSave('published')}
             disabled={saving}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
+            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
           >
             <Eye className="w-4 h-4" />
             Publish
@@ -191,14 +257,14 @@ export default function ArticleEditor() {
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main editor area */}
-        <div className="lg:col-span-2 space-y-5">
+        <div className={`${showHistory ? 'lg:col-span-1' : 'lg:col-span-2'} space-y-5`}>
           {/* Title */}
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Article title"
-            className="w-full text-3xl font-bold text-gray-900 placeholder:text-gray-300 focus:outline-none bg-transparent"
+            className="w-full text-2xl sm:text-3xl font-bold text-gray-900 placeholder:text-gray-300 focus:outline-none bg-transparent"
           />
 
           {/* Slug */}
@@ -320,6 +386,51 @@ export default function ArticleEditor() {
           />
         </div>
 
+        {/* History panel */}
+        {showHistory && (
+          <div className="space-y-3">
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
+                <History className="w-4 h-4 text-primary" />
+                Version History
+              </h3>
+              {versions.length === 0 ? (
+                <p className="text-xs text-gray-400">No versions saved yet. Versions are created each time you save.</p>
+              ) : (
+                <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+                  {versions.map((v, i) => (
+                    <div
+                      key={v.editedAt}
+                      className="p-3 border border-gray-100 rounded-lg hover:border-primary/30 transition-colors"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-medium text-gray-700 truncate max-w-[60%]">
+                          {v.title}
+                        </span>
+                        {i > 0 && (
+                          <button
+                            onClick={() => handleRestore(v)}
+                            className="flex items-center gap-1 text-xs text-primary hover:underline"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Restore
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400">
+                        {v.editedBy} &middot;{' '}
+                        {v.editedAt && !isNaN(v.editedAt)
+                          ? formatDistanceToNow(new Date(v.editedAt), { addSuffix: true })
+                          : ''}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Sidebar */}
         <div className="space-y-5">
           {/* Featured Image */}
@@ -401,6 +512,38 @@ export default function ArticleEditor() {
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* Scheduling */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5">
+            <h3 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
+              <CalendarClock className="w-4 h-4 text-primary" />
+              Schedule
+            </h3>
+            <input
+              type="datetime-local"
+              value={scheduledAt}
+              onChange={(e) => setScheduledAt(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-primary"
+            />
+            {scheduledAt && (
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  onClick={() => handleSave('scheduled')}
+                  disabled={saving}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50"
+                >
+                  <CalendarClock className="w-3.5 h-3.5" />
+                  Schedule
+                </button>
+                <button
+                  onClick={() => setScheduledAt('')}
+                  className="px-3 py-2 text-xs text-gray-500 hover:text-gray-700"
+                >
+                  Clear
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Author */}

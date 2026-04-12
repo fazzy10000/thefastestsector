@@ -38,14 +38,14 @@ export default function AuthorManager() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Authors</h1>
           <p className="text-gray-500 text-sm mt-1">Manage the writers who appear on articles</p>
         </div>
         <button
           onClick={handleNew}
-          className="flex items-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
+          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium"
         >
           <PlusCircle className="w-4 h-4" />
           New Author
@@ -91,7 +91,7 @@ export default function AuthorManager() {
       {/* Edit modal */}
       {editing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6">
+          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-lg font-bold text-gray-900">
                 {editing.name ? 'Edit Author' : 'New Author'}
@@ -135,7 +135,7 @@ export default function AuthorManager() {
                   <img src={editing.avatar} alt="" className="w-16 h-16 rounded-full object-cover mt-2" />
                 )}
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">X / Twitter</label>
                   <input
