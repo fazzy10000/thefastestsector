@@ -13,7 +13,7 @@ import {
   limit as fbLimit,
   type QueryConstraint,
 } from 'firebase/firestore'
-import { db, isFirebaseConfigured } from '../lib/firebase'
+import { db, isDemoMode } from '../lib/firebase'
 import { SAMPLE_ARTICLES } from '../lib/sampleData'
 import type { Article, Category } from '../lib/types'
 
@@ -65,7 +65,7 @@ export function useArticles() {
     limit?: number
     featured?: boolean
   }) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       let data = readLocal()
       const now = Date.now()
@@ -126,7 +126,7 @@ export function useArticles() {
   }, [])
 
   const getArticle = useCallback(async (id: string): Promise<Article | null> => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       return readLocal().find((a) => a.id === id) ?? null
     }
@@ -140,7 +140,7 @@ export function useArticles() {
   }, [])
 
   const getArticleBySlug = useCallback(async (slug: string, _includeUnpublished = false): Promise<Article | null> => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       return readLocal().find((a) => a.slug === slug) ?? null
     }
@@ -157,7 +157,7 @@ export function useArticles() {
   }, [])
 
   const createArticle = useCallback(async (data: Omit<Article, 'id'>) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       const all = readLocal()
       const newId = crypto.randomUUID()
@@ -170,7 +170,7 @@ export function useArticles() {
   }, [])
 
   const updateArticle = useCallback(async (id: string, data: Partial<Article>) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       const all = readLocal()
       const idx = all.findIndex((a) => a.id === id)
@@ -184,7 +184,7 @@ export function useArticles() {
   }, [])
 
   const removeArticle = useCallback(async (id: string) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       writeLocal(readLocal().filter((a) => a.id !== id))
       return

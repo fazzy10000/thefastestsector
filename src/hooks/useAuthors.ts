@@ -9,7 +9,7 @@ import {
   query,
   where,
 } from 'firebase/firestore'
-import { db, isFirebaseConfigured } from '../lib/firebase'
+import { db, isDemoMode } from '../lib/firebase'
 import { SAMPLE_AUTHORS } from '../lib/sampleAuthors'
 import type { Author } from '../lib/types'
 
@@ -43,7 +43,7 @@ export function useAuthors() {
   const [loading, setLoading] = useState(true)
 
   const fetchAuthors = useCallback(async () => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       let data = readLocal()
       if (data.length === 0 && !localStorage.getItem(LS_KEY)) {
@@ -70,7 +70,7 @@ export function useAuthors() {
   }, [])
 
   const getAuthor = useCallback(async (id: string): Promise<Author | null> => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       return readLocal().find((a) => a.id === id) ?? null
     }
@@ -85,7 +85,7 @@ export function useAuthors() {
 
   const getAuthorByName = useCallback(
     async (name: string): Promise<Author | null> => {
-      if (!isFirebaseConfigured || !db) {
+      if (isDemoMode || !db) {
         initLocalIfEmpty()
         return (
           readLocal().find(
@@ -107,7 +107,7 @@ export function useAuthors() {
   )
 
   const saveAuthor = useCallback(async (author: Author) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       const all = readLocal()
       const idx = all.findIndex((a) => a.id === author.id)
@@ -126,7 +126,7 @@ export function useAuthors() {
   }, [fetchAuthors])
 
   const removeAuthor = useCallback(async (id: string) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       const filtered = readLocal().filter((a) => a.id !== id)
       writeLocal(filtered)

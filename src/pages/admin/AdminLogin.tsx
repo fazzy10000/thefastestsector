@@ -99,10 +99,10 @@ export default function AdminLogin() {
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
             >
               <Zap className="w-4 h-4 text-yellow-400" />
-              Demo Login (no Firebase needed)
+              Demo Login (local data)
             </button>
             <p className="text-center text-white/30 text-xs mt-2">
-              Data is stored in your browser's localStorage
+              Dev/demo mode — data is stored in your browser&apos;s localStorage
             </p>
           </div>
         )}

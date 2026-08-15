@@ -1,15 +1,16 @@
-import { useState, useEffect, useSyncExternalStore, useCallback } from 'react'
+import { useState, useEffect, useCallback, useSyncExternalStore } from 'react'
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
   type User,
 } from 'firebase/auth'
-import { auth, isFirebaseConfigured } from '../lib/firebase'
+import { auth, isDemoMode, isFirebaseConfigured } from '../lib/firebase'
 import type { UserRole } from '../lib/types'
 
 const DEMO_KEY = 'tfs_demo_auth'
 const DEMO_ROLE_KEY = 'tfs_demo_role'
+const DEMO_SIGNED_OUT_KEY = 'tfs_demo_signed_out'
 
 let listeners: Array<() => void> = []
 function emitDemoChange() {
@@ -25,13 +26,33 @@ function getDemoSnapshot() {
   return localStorage.getItem(DEMO_KEY) === 'true'
 }
 
+// Auto-establishes a demo session so dev/demo mode needs no login step on first visit —
+// but respects an explicit sign-out, so the Sign Out button stays effective until
+// Demo Login is clicked again.
+function ensureDemoSession() {
+  if (localStorage.getItem(DEMO_SIGNED_OUT_KEY) === 'true') return
+  if (localStorage.getItem(DEMO_KEY) !== 'true') {
+    localStorage.setItem(DEMO_KEY, 'true')
+    localStorage.setItem(DEMO_ROLE_KEY, 'admin')
+    emitDemoChange()
+  }
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [role, setRole] = useState<UserRole>('admin')
-  const demoUser = useSyncExternalStore(subscribeDemoAuth, getDemoSnapshot)
+  const demoAuthed = useSyncExternalStore(subscribeDemoAuth, getDemoSnapshot)
 
   useEffect(() => {
+    if (isDemoMode) {
+      ensureDemoSession()
+      const savedRole = localStorage.getItem(DEMO_ROLE_KEY) as UserRole | null
+      setRole(savedRole || 'admin')
+      setLoading(false)
+      return
+    }
+
     if (isFirebaseConfigured && auth) {
       const unsubscribe = onAuthStateChanged(auth, async (u) => {
         setUser(u)
@@ -63,19 +84,21 @@ export function useAuth() {
       })
       return unsubscribe
     }
+
     const savedRole = localStorage.getItem(DEMO_ROLE_KEY) as UserRole | null
     setRole(savedRole || 'admin')
     setLoading(false)
   }, [])
 
   const signIn = async (email: string, password: string) => {
-    if (isFirebaseConfigured && auth) {
+    if (!isDemoMode && isFirebaseConfigured && auth) {
       return signInWithEmailAndPassword(auth, email, password)
     }
     throw new Error('Firebase not configured — use Demo Login instead')
   }
 
   const demoSignIn = () => {
+    localStorage.removeItem(DEMO_SIGNED_OUT_KEY)
     localStorage.setItem(DEMO_KEY, 'true')
     localStorage.setItem(DEMO_ROLE_KEY, 'admin')
     setRole('admin')
@@ -83,17 +106,21 @@ export function useAuth() {
   }
 
   const signOut = async () => {
+    if (isDemoMode) {
+      localStorage.setItem(DEMO_SIGNED_OUT_KEY, 'true')
+      localStorage.removeItem(DEMO_KEY)
+      emitDemoChange()
+      return
+    }
     if (isFirebaseConfigured && auth) {
       return firebaseSignOut(auth)
     }
     localStorage.removeItem(DEMO_KEY)
     localStorage.removeItem(DEMO_ROLE_KEY)
-    emitDemoChange()
   }
 
-  const isAuthenticated = isFirebaseConfigured ? Boolean(user) : demoUser
-
-  const uid = isFirebaseConfigured ? (user?.uid || '') : (demoUser ? 'demo-admin' : '')
+  const isAuthenticated = isDemoMode ? demoAuthed : Boolean(user)
+  const uid = isDemoMode ? (demoAuthed ? 'demo-admin' : '') : (user?.uid || '')
 
   const can = useCallback(
     (
@@ -136,7 +163,7 @@ export function useAuth() {
     signOut,
     demoSignIn,
     isAuthenticated,
-    isDemo: !isFirebaseConfigured,
+    isDemo: isDemoMode,
     can,
   }
 }

@@ -24,6 +24,7 @@ Object.defineProperty(window, 'matchMedia', {
 
 vi.mock('../lib/firebase', () => ({
   isFirebaseConfigured: false,
+  isDemoMode: true,
   app: null,
   auth: null,
   db: null,

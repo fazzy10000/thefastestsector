@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { doc, getDoc, setDoc } from 'firebase/firestore'
-import { db, isFirebaseConfigured } from '../lib/firebase'
+import { db, isDemoMode } from '../lib/firebase'
 import type { SiteSettings } from '../lib/types'
 import { DEFAULT_SETTINGS } from '../lib/types'
 
@@ -22,7 +22,7 @@ export function useSettings() {
   const [loading, setLoading] = useState(true)
 
   const fetchSettings = useCallback(async () => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       setSettings(readLocal())
       setLoading(false)
       return
@@ -40,7 +40,7 @@ export function useSettings() {
   }, [])
 
   const saveSettings = useCallback(async (data: SiteSettings) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       localStorage.setItem(LS_KEY, JSON.stringify(data))
       setSettings(data)
       return

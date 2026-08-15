@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore'
-import { db, isFirebaseConfigured } from '../lib/firebase'
+import { db, isDemoMode } from '../lib/firebase'
 import type { ArticleSEOOverride, GlobalSEOSettings } from '../lib/types'
 import { DEFAULT_SEO_SETTINGS } from '../lib/types'
 
@@ -63,7 +63,7 @@ export function useSEO() {
   const [loading, setLoading] = useState(true)
 
   const fetchSettings = useCallback(async () => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       setSettings(readLocalSettings())
       return
     }
@@ -82,7 +82,7 @@ export function useSEO() {
 
   const saveSettings = useCallback(async (data: GlobalSEOSettings) => {
     const merged = mergeSettings(data)
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       localStorage.setItem(LS_SETTINGS, JSON.stringify(merged))
       setSettings(merged)
       return
@@ -92,7 +92,7 @@ export function useSEO() {
   }, [])
 
   const fetchOverrides = useCallback(async () => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       const local = readLocalOverrides()
       overridesRef.current = local
       setOverrides(local)
@@ -120,7 +120,7 @@ export function useSEO() {
     const next = { ...overridesRef.current, [articleId]: merged }
     overridesRef.current = next
     setOverrides(next)
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       writeLocalOverrides(next)
       return
     }

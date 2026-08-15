@@ -12,7 +12,7 @@ import {
   doc,
   type QueryConstraint,
 } from 'firebase/firestore'
-import { db, isFirebaseConfigured } from '../lib/firebase'
+import { db, isDemoMode } from '../lib/firebase'
 import { SAMPLE_QUIZZES } from '../lib/sampleQuizzes'
 import type { Quiz, Category } from '../lib/types'
 
@@ -60,7 +60,7 @@ export function useQuizzes() {
     category?: Category
     status?: 'draft' | 'published'
   }) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       let data = readLocal()
       if (opts?.status) data = data.filter((q) => q.status === opts.status)
@@ -98,7 +98,7 @@ export function useQuizzes() {
   }, [])
 
   const getQuiz = useCallback(async (id: string): Promise<Quiz | null> => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       return readLocal().find((q) => q.id === id) ?? null
     }
@@ -112,7 +112,7 @@ export function useQuizzes() {
   }, [])
 
   const getQuizBySlug = useCallback(async (slug: string): Promise<Quiz | null> => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       return readLocal().find((q) => q.slug === slug) ?? null
     }
@@ -129,7 +129,7 @@ export function useQuizzes() {
   }, [])
 
   const createQuiz = useCallback(async (data: Omit<Quiz, 'id'>) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       const all = readLocal()
       const newId = crypto.randomUUID()
@@ -142,7 +142,7 @@ export function useQuizzes() {
   }, [])
 
   const updateQuiz = useCallback(async (id: string, data: Partial<Quiz>) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       const all = readLocal()
       const idx = all.findIndex((q) => q.id === id)
@@ -156,7 +156,7 @@ export function useQuizzes() {
   }, [])
 
   const removeQuiz = useCallback(async (id: string) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       writeLocal(readLocal().filter((q) => q.id !== id))
       return

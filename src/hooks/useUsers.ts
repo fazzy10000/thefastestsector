@@ -9,7 +9,7 @@ import {
   query,
   where,
 } from 'firebase/firestore'
-import { db, isFirebaseConfigured } from '../lib/firebase'
+import { db, isDemoMode } from '../lib/firebase'
 import type { AppUser, Invite, UserRole } from '../lib/types'
 
 const COLLECTION = 'users'
@@ -64,7 +64,7 @@ export function useUsers() {
   const [loading, setLoading] = useState(true)
 
   const fetchUsers = useCallback(async () => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       const data = readLocal()
       setUsers(data)
@@ -93,7 +93,7 @@ export function useUsers() {
   }, [])
 
   const getUser = useCallback(async (uid: string): Promise<AppUser | null> => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       initLocalIfEmpty()
       return readLocal().find((u) => u.uid === uid) ?? null
     }
@@ -119,7 +119,7 @@ export function useUsers() {
         createdAt: Date.now(),
       }
 
-      if (!isFirebaseConfigured || !db) {
+      if (isDemoMode || !db) {
         const all = readLocal()
         all.push(newUser)
         writeLocal(all)
@@ -143,7 +143,7 @@ export function useUsers() {
       used: false,
     }
 
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       const all = readLocalInvites()
       all.push(invite)
       writeLocalInvites(all)
@@ -158,7 +158,7 @@ export function useUsers() {
   }, [fetchUsers])
 
   const getInviteByToken = useCallback(async (token: string): Promise<Invite | null> => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       return readLocalInvites().find((i) => i.id === token && !i.used) ?? null
     }
     try {
@@ -172,7 +172,7 @@ export function useUsers() {
   }, [])
 
   const markInviteUsed = useCallback(async (token: string) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       const all = readLocalInvites()
       const idx = all.findIndex((i) => i.id === token)
       if (idx !== -1) {
@@ -189,7 +189,7 @@ export function useUsers() {
   }, [])
 
   const revokeInvite = useCallback(async (token: string) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       const filtered = readLocalInvites().filter((i) => i.id !== token)
       writeLocalInvites(filtered)
       setInvites(filtered.filter((i) => !i.used))
@@ -200,7 +200,7 @@ export function useUsers() {
   }, [fetchUsers])
 
   const updateRole = useCallback(async (uid: string, role: UserRole) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       const all = readLocal()
       const idx = all.findIndex((u) => u.uid === uid)
       if (idx !== -1) {
@@ -218,7 +218,7 @@ export function useUsers() {
   }, [fetchUsers])
 
   const removeUser = useCallback(async (uid: string) => {
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       const filtered = readLocal().filter((u) => u.uid !== uid)
       writeLocal(filtered)
       setUsers(filtered)

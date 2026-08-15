@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { storage, isFirebaseConfigured } from '../lib/firebase'
+import { auth } from '../lib/firebase'
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as string | undefined
@@ -40,29 +39,36 @@ export function useImageUpload() {
       }
     }
 
-    if (!isFirebaseConfigured || !storage) {
-      return new Promise((resolve) => {
-        const reader = new FileReader()
-        reader.onload = () => {
-          setProgress(100)
-          setUploading(false)
-          resolve(reader.result as string)
-        }
-        reader.readAsDataURL(file)
-      })
+    const idToken = await auth?.currentUser?.getIdToken().catch(() => null)
+    if (idToken) {
+      try {
+        const formData = new FormData()
+        formData.append('file', file)
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${idToken}` },
+          body: formData,
+        })
+        if (!res.ok) throw new Error('R2 upload failed')
+        const data = await res.json()
+        setProgress(100)
+        return data.url as string
+      } catch {
+        // fall through to local data-URL fallback below
+      } finally {
+        setUploading(false)
+      }
     }
 
-    try {
-      const timestamp = Date.now()
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-      const storageRef = ref(storage, `images/${timestamp}_${safeName}`)
-      await uploadBytes(storageRef, file)
-      setProgress(100)
-      const url = await getDownloadURL(storageRef)
-      return url
-    } finally {
-      setUploading(false)
-    }
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        setProgress(100)
+        setUploading(false)
+        resolve(reader.result as string)
+      }
+      reader.readAsDataURL(file)
+    })
   }, [])
 
   return { uploadImage, uploading, progress, isCloudinaryConfigured }

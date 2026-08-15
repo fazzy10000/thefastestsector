@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { doc, setDoc } from 'firebase/firestore'
-import { db, isFirebaseConfigured } from '../../lib/firebase'
+import { db, isDemoMode, isFirebaseConfigured } from '../../lib/firebase'
 import { Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
 
 export default function ImportPage() {
@@ -14,8 +14,8 @@ export default function ImportPage() {
   }, [])
 
   const handleImport = useCallback(async () => {
-    if (!isFirebaseConfigured || !db) {
-      addLog('Firebase is not configured. Cannot import.')
+    if (isDemoMode || !isFirebaseConfigured || !db) {
+      addLog('Import requires real Firebase. Set VITE_USE_FIREBASE=true and restart the dev server.')
       return
     }
 
@@ -90,11 +90,13 @@ export default function ImportPage() {
         This uses your authenticated session to write directly to Firestore.
       </p>
 
-      {!isFirebaseConfigured && (
+      {(isDemoMode || !isFirebaseConfigured) && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
           <p className="text-sm text-amber-800 font-medium flex items-center gap-2">
             <AlertCircle className="w-4 h-4" />
-            Firebase is not configured. Import requires a Firebase connection.
+            {isDemoMode
+              ? 'Demo mode is active — import needs real Firebase (VITE_USE_FIREBASE=true).'
+              : 'Firebase is not configured. Import requires a Firebase connection.'}
           </p>
         </div>
       )}
@@ -102,7 +104,7 @@ export default function ImportPage() {
       {!importing && !finished && (
         <button
           onClick={handleImport}
-          disabled={!isFirebaseConfigured}
+          disabled={isDemoMode || !isFirebaseConfigured}
           className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
         >
           <Upload className="w-4 h-4" />

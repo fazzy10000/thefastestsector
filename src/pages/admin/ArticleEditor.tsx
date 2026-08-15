@@ -70,12 +70,14 @@ export default function ArticleEditor() {
   const [featured, setFeatured] = useState(false)
   const [scheduledAt, setScheduledAt] = useState<string>('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
   const [loadingArticle, setLoadingArticle] = useState(!!id)
   const [focusKeyphrase, setFocusKeyphrase] = useState('')
   const [metaTitle, setMetaTitle] = useState('')
   const [metaDescription, setMetaDescription] = useState('')
   const [showImageTools, setShowImageTools] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const [contentHtml, setContentHtml] = useState('')
 
   const editor = useEditor({
     extensions: [
@@ -85,6 +87,7 @@ export default function ArticleEditor() {
       Placeholder.configure({ placeholder: 'Start writing your article...' }),
     ],
     content: '',
+    onUpdate: ({ editor }) => setContentHtml(editor.getHTML()),
   })
 
   useEffect(() => {
@@ -106,6 +109,7 @@ export default function ArticleEditor() {
             setScheduledAt(new Date(article.scheduledAt).toISOString().slice(0, 16))
           }
           editor?.commands.setContent(article.content)
+          setContentHtml(article.content)
         }
         setLoadingArticle(false)
       })
@@ -129,8 +133,13 @@ export default function ArticleEditor() {
   }, [uploadImage, editor])
 
   const handleSave = async (saveStatus?: 'draft' | 'published' | 'scheduled') => {
-    if (!title.trim() || !editor) return
+    if (!editor) return
+    if (!title.trim()) {
+      setSaveError('Please add a title before saving.')
+      return
+    }
     setSaving(true)
+    setSaveError('')
 
     const finalStatus = saveStatus || status
     const now = Date.now()
@@ -179,6 +188,8 @@ export default function ArticleEditor() {
       navigate('/admin')
     } catch (err) {
       console.error('Error saving article:', err)
+      const message = err instanceof Error ? err.message : 'Failed to save article'
+      setSaveError(message)
     } finally {
       setSaving(false)
     }
@@ -188,6 +199,7 @@ export default function ArticleEditor() {
     setTitle(version.title)
     setExcerpt(version.excerpt)
     editor?.commands.setContent(version.content)
+    setContentHtml(version.content)
     setShowHistory(false)
   }
 
@@ -254,6 +266,12 @@ export default function ArticleEditor() {
           </button>
         </div>
       </div>
+
+      {saveError && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+          {saveError}
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main editor area */}
@@ -337,12 +355,11 @@ export default function ArticleEditor() {
                     if (url) editor.chain().focus().setLink({ href: url }).run()
                   }}
                 />
-                <label className="cursor-pointer">
-                  <ToolbarBtn
-                    icon={<Image className="w-4 h-4" />}
-                    active={false}
-                    onClick={() => {}}
-                  />
+                <label
+                  className="p-1.5 rounded transition-colors cursor-pointer text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  title="Insert image"
+                >
+                  <Image className="w-4 h-4" />
                   <input
                     type="file"
                     accept="image/*"
@@ -350,6 +367,7 @@ export default function ArticleEditor() {
                     onChange={(e) => {
                       const f = e.target.files?.[0]
                       if (f) handleImageUpload(f, 'content')
+                      e.target.value = ''
                     }}
                   />
                 </label>
@@ -375,7 +393,7 @@ export default function ArticleEditor() {
             title={title}
             slug={slug}
             excerpt={excerpt}
-            content={editor?.getHTML() || ''}
+            content={contentHtml}
             featuredImage={featuredImage}
             focusKeyphrase={focusKeyphrase}
             onFocusKeyphraseChange={setFocusKeyphrase}

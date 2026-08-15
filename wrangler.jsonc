@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "thefastestsector",
+  "compatibility_date": "2026-04-12",
+  "main": "worker/index.ts",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "r2_buckets": [
+    { "binding": "IMAGES", "bucket_name": "tfs-images" }
+  ],
+  "vars": {
+    "FIREBASE_PROJECT_ID": "the-fastest-sector",
+    "R2_PUBLIC_URL": "https://pub-de50aef2f1cd4436bfc3bc131bd72420.r2.dev"
+  }
+}

@@ -30,7 +30,7 @@ const NAV = [
 ]
 
 export default function AdminLayout() {
-  const { signOut, can, role } = useAuth()
+  const { signOut, can, role, isDemo } = useAuth()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -49,6 +49,11 @@ export default function AdminLayout() {
         </button>
       </div>
       <p className="px-5 pt-2 text-xs text-white/40 capitalize">{role}</p>
+      {isDemo && (
+        <p className="mx-4 mt-2 px-2.5 py-1.5 rounded-md bg-amber-500/15 border border-amber-400/30 text-[11px] text-amber-200 leading-snug">
+          Demo mode — saves stay in this browser only
+        </p>
+      )}
       <nav className="flex-1 p-4 space-y-1">
         {NAV.map((item) => {
           if (item.requiredAction && !can(item.requiredAction)) return null

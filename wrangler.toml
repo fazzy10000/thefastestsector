@@ -1,7 +1,0 @@
-#:schema node_mudules/wrangler/config-schema.json
-name = "thefastestector"
-compatibility_date = "2026-04-12"
-pages_build_output_dir = "./dist"
-
-[build]
-command = "npm run build"

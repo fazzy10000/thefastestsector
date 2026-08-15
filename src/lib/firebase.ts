@@ -1,7 +1,6 @@
 import { initializeApp, type FirebaseApp } from 'firebase/app'
 import { getAuth, type Auth } from 'firebase/auth'
 import { getFirestore, type Firestore } from 'firebase/firestore'
-import { getStorage, type FirebaseStorage } from 'firebase/storage'
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
@@ -14,20 +13,26 @@ const firebaseConfig = {
 
 export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId)
 
+/**
+ * Local demo mode: no Firebase login, data in localStorage.
+ * On by default in Vite `npm run dev`. Set VITE_USE_FIREBASE=true to hit real Firebase locally.
+ */
+export const isDemoMode =
+  !isFirebaseConfigured ||
+  (import.meta.env.DEV && import.meta.env.VITE_USE_FIREBASE !== 'true')
+
 let app: FirebaseApp | null = null
 let auth: Auth | null = null
 let db: Firestore | null = null
-let storage: FirebaseStorage | null = null
 
-if (isFirebaseConfigured) {
+if (isFirebaseConfigured && !isDemoMode) {
   try {
     app = initializeApp(firebaseConfig)
     auth = getAuth(app)
     db = getFirestore(app)
-    storage = getStorage(app)
   } catch (e) {
     console.warn('Firebase initialization failed:', e)
   }
 }
 
-export { app, auth, db, storage }
+export { app, auth, db }

@@ -6,7 +6,7 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore'
-import { db, isFirebaseConfigured } from '../lib/firebase'
+import { db, isDemoMode } from '../lib/firebase'
 import type { ArticleVersion } from '../lib/types'
 
 const LS_PREFIX = 'tfs_versions_'
@@ -33,7 +33,7 @@ export function useVersions(articleId: string | undefined) {
     if (!articleId) return []
     setLoading(true)
 
-    if (!isFirebaseConfigured || !db) {
+    if (isDemoMode || !db) {
       const data = readLocalVersions(articleId)
       data.sort((a, b) => b.editedAt - a.editedAt)
       setVersions(data)
@@ -62,7 +62,7 @@ export function useVersions(articleId: string | undefined) {
     async (version: ArticleVersion) => {
       if (!articleId) return
 
-      if (!isFirebaseConfigured || !db) {
+      if (isDemoMode || !db) {
         const all = readLocalVersions(articleId)
         all.unshift(version)
         if (all.length > 50) all.length = 50
