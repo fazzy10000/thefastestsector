@@ -26,6 +26,8 @@ import QuizEditor from './pages/admin/QuizEditor'
 import SEODashboard from './pages/admin/SEODashboard'
 import InviteSignup from './pages/admin/InviteSignup'
 import NotFound from './pages/NotFound'
+import SectorSweep from './pages/SectorSweep'
+import InteractivePage from './pages/InteractivePage'
 
 export default function App() {
   return (
@@ -44,6 +46,9 @@ export default function App() {
           <Route path="/schedule" element={<SchedulePage />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/sector-sweep" element={<SectorSweep />} />
+          <Route path="/interactive" element={<InteractivePage />} />
+          <Route path="/interactive/:section" element={<InteractivePage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
 
