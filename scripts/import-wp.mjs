@@ -235,9 +235,10 @@ async function main() {
   }
 
   const fs = await import('fs')
-  const outPath = new URL('../src/data/wp-import.json', import.meta.url).pathname
-  const dir = outPath.substring(0, outPath.lastIndexOf('/'))
-  fs.mkdirSync(dir, { recursive: true })
+  const path = await import('path')
+  const { fileURLToPath } = await import('url')
+  const outPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'src', 'data', 'wp-import.json')
+  fs.mkdirSync(path.dirname(outPath), { recursive: true })
   fs.writeFileSync(outPath, JSON.stringify(importData, null, 2))
 
   console.log(`\n✅ Import complete!`)

@@ -86,7 +86,7 @@ export default function ImportPage() {
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Import Articles</h1>
       <p className="text-sm text-gray-500 mb-6">
-        Import all {485} articles from the original WordPress site into Firebase.
+        Import all articles from the original WordPress site into Firebase.
         This uses your authenticated session to write directly to Firestore.
       </p>
 
@@ -108,7 +108,7 @@ export default function ImportPage() {
           className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
         >
           <Upload className="w-4 h-4" />
-          Start Import (485 articles + 15 authors)
+          Start Import (579 articles + 16 authors)
         </button>
       )}
 
