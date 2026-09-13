@@ -1,80 +1,35 @@
-import { useState, useCallback } from 'react'
-import {
-  collection,
-  getDocs,
-  addDoc,
-  query,
-  orderBy,
-} from 'firebase/firestore'
-import { db, isDemoMode } from '../lib/firebase'
+import { useState, useCallback, useEffect } from 'react'
+import { api } from '../lib/api'
 import type { ArticleVersion } from '../lib/types'
 
-const LS_PREFIX = 'tfs_versions_'
-
-function readLocalVersions(articleId: string): ArticleVersion[] {
-  try {
-    const raw = localStorage.getItem(LS_PREFIX + articleId)
-    if (!raw) return []
-    return JSON.parse(raw) as ArticleVersion[]
-  } catch {
-    return []
-  }
-}
-
-function writeLocalVersions(articleId: string, versions: ArticleVersion[]) {
-  localStorage.setItem(LS_PREFIX + articleId, JSON.stringify(versions))
-}
-
-export function useVersions(articleId: string | undefined) {
+export function useVersions(articleId?: string) {
   const [versions, setVersions] = useState<ArticleVersion[]>([])
-  const [loading, setLoading] = useState(false)
 
   const fetchVersions = useCallback(async () => {
-    if (!articleId) return []
-    setLoading(true)
-
-    if (isDemoMode || !db) {
-      const data = readLocalVersions(articleId)
-      data.sort((a, b) => b.editedAt - a.editedAt)
-      setVersions(data)
-      setLoading(false)
-      return data
-    }
-
-    try {
-      const q = query(
-        collection(db, 'articles', articleId, 'versions'),
-        orderBy('editedAt', 'desc'),
-      )
-      const snapshot = await getDocs(q)
-      const data = snapshot.docs.map((d) => d.data() as ArticleVersion)
-      setVersions(data)
-      return data
-    } catch (err) {
-      console.error('Error fetching versions:', err)
+    if (!articleId) {
+      setVersions([])
       return []
-    } finally {
-      setLoading(false)
     }
+    const data = await api<{ versions: ArticleVersion[] }>(`/api/articles/${articleId}/versions`)
+    setVersions(data.versions)
+    return data.versions
   }, [articleId])
 
   const saveVersion = useCallback(
     async (version: ArticleVersion) => {
       if (!articleId) return
-
-      if (isDemoMode || !db) {
-        const all = readLocalVersions(articleId)
-        all.unshift(version)
-        if (all.length > 50) all.length = 50
-        writeLocalVersions(articleId, all)
-        setVersions(all)
-        return
-      }
-
-      await addDoc(collection(db, 'articles', articleId, 'versions'), version)
+      await api(`/api/articles/${articleId}/versions`, {
+        method: 'POST',
+        body: JSON.stringify(version),
+      })
+      await fetchVersions()
     },
-    [articleId],
+    [articleId, fetchVersions],
   )
 
-  return { versions, loading, fetchVersions, saveVersion }
+  useEffect(() => {
+    if (articleId) void fetchVersions()
+  }, [articleId, fetchVersions])
+
+  return { versions, fetchVersions, saveVersion }
 }

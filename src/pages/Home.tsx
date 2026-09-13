@@ -1,14 +1,18 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, CheckCircle, Mail } from 'lucide-react'
+import { ChevronRight, CheckCircle } from 'lucide-react'
 import SEO from '../components/SEO'
 import RacingLoader from '../components/RacingLoader'
 import RaceCountdown from '../components/RaceCountdown'
+import AdSlot from '../components/AdSlot'
 import { useArticles } from '../hooks/useArticles'
 import { useQuizzes } from '../hooks/useQuizzes'
 import { CATEGORY_LABELS, CATEGORY_COLORS, type Article } from '../lib/types'
-import { buildRaceSchedule, sortEventsChronologically } from '../data/raceSchedule2026'
+import { useRaceSchedule } from '../hooks/useRaceSchedule'
+import { sortEventsChronologically } from '../data/raceSchedule2026'
 import { flagEmojiFromCountryCode } from '../lib/countryFlags'
+import { quizCoverImage } from '../lib/quizCovers'
+import { schedulePath } from '../lib/scheduleLinks'
 import { formatDistanceToNow, format } from 'date-fns'
 
 const AUTOPLAY_MS = 6000
@@ -163,11 +167,15 @@ function CompactArticleItem({ article }: { article: Article }) {
 }
 
 export default function Home() {
-  const { articles, loading } = useArticles()
-  const { quizzes } = useQuizzes()
+  const { articles, loading, fetchArticles } = useArticles()
+  const { quizzes, fetchQuizzes } = useQuizzes()
   const [currentSlide, setCurrentSlide] = useState(0)
   const [paused, setPaused] = useState(false)
-  const [email, setEmail] = useState('')
+
+  useEffect(() => {
+    void fetchArticles({ status: 'published', limit: 12 })
+    void fetchQuizzes({ status: 'published' })
+  }, [fetchArticles, fetchQuizzes])
 
   const published = articles.filter((a) => a.status === 'published')
   const heroArticles = published.slice(0, 5)
@@ -188,7 +196,7 @@ export default function Home() {
   )
 
   // Race schedule data
-  const schedule = useMemo(() => buildRaceSchedule(Date.now()), [])
+  const { events: schedule } = useRaceSchedule()
   const upcomingF1 = useMemo(
     () =>
       sortEventsChronologically(
@@ -366,16 +374,10 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div className="mt-auto pt-5 flex gap-2">
+                <div className="mt-auto pt-5">
                   <Link
-                    to="/schedule"
-                    className="flex-1 text-center py-2 border border-white/20 text-xs font-bold uppercase tracking-wider hover:bg-white/10 transition-colors rounded"
-                  >
-                    Preview
-                  </Link>
-                  <Link
-                    to="/schedule"
-                    className="flex-1 text-center py-2 bg-primary text-xs font-bold uppercase tracking-wider hover:bg-primary-dark transition-colors rounded"
+                    to={schedulePath('f1')}
+                    className="block w-full text-center py-2 bg-primary text-xs font-bold uppercase tracking-wider hover:bg-primary-dark transition-colors rounded"
                   >
                     Full Schedule
                   </Link>
@@ -434,10 +436,10 @@ export default function Home() {
       {/* ══════════════════════════════════════════
           SECTION 2: Latest News + Sector Sweep
       ══════════════════════════════════════════ */}
-      <section className="max-w-7xl mx-auto px-4 py-10 grid lg:grid-cols-[1fr_320px] gap-8">
+      <section className="max-w-7xl mx-auto px-4 py-10 grid lg:grid-cols-[1fr_240px] gap-8 items-start">
         {/* Latest News */}
         <div>
-          <SectionHeading title="Latest News" linkLabel="View All News" linkTo="/category/formula-1" />
+          <SectionHeading title="Latest News" linkLabel="View All News" linkTo="/category/news" />
 
           {featuredNewsArticle && (
             <Link
@@ -477,46 +479,27 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Sector Sweep promo */}
-        <div className="bg-surface-darker text-white rounded-xl p-6 flex flex-col">
-          <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-1">
+        {/* Sector Sweep promo + ad */}
+        <div className="space-y-4">
+        <div className="bg-surface-darker text-white rounded-lg p-4">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">
             Newsletter
           </p>
-          <h3 className="text-2xl font-black mb-1">
+          <h3 className="text-lg font-black mb-1 leading-tight">
             SECTOR <span className="text-primary">SWEEP</span>
           </h3>
-          <p className="text-sm text-white/60 mb-4">
-            All the latest motorsport news straight to your inbox.
+          <p className="text-xs text-white/55 mb-3">
+            Motorsport news in your inbox.
           </p>
 
-          <form
-            onSubmit={(e) => e.preventDefault()}
-            className="flex gap-2 mb-5"
-          >
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-primary min-w-0"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2 bg-primary text-white text-xs font-bold uppercase tracking-wider rounded hover:bg-primary-dark transition-colors whitespace-nowrap"
-            >
-              Subscribe
-            </button>
-          </form>
-
-          <ul className="space-y-2 mb-5">
+          <ul className="space-y-1.5 mb-4">
             {[
-              'Top stories & in-depth analysis',
-              'Results, standings & stats',
-              'Exclusive interviews',
-              'Delivered straight to your inbox every month',
+              'Top stories & analysis',
+              'Exclusives',
+              'Monthly digest',
             ].map((item) => (
-              <li key={item} className="flex items-start gap-2 text-xs text-white/70">
-                <CheckCircle className="w-3.5 h-3.5 text-primary flex-none mt-0.5" />
+              <li key={item} className="flex items-start gap-1.5 text-[11px] text-white/65">
+                <CheckCircle className="w-3 h-3 text-primary flex-none mt-0.5" />
                 {item}
               </li>
             ))}
@@ -524,10 +507,12 @@ export default function Home() {
 
           <Link
             to="/sector-sweep"
-            className="mt-auto text-xs font-bold uppercase tracking-wider text-primary hover:underline flex items-center gap-1"
+            className="text-[11px] font-bold uppercase tracking-wider text-primary hover:underline inline-flex items-center gap-1"
           >
             View Latest Edition <ChevronRight className="w-3 h-3" />
           </Link>
+        </div>
+        <AdSlot placement="home" />
         </div>
       </section>
 
@@ -537,13 +522,11 @@ export default function Home() {
       {weekQuiz && (
         <section className="max-w-7xl mx-auto px-4 py-4 pb-10">
           <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-center">
-            {weekQuiz.featuredImage && (
-              <img
-                src={weekQuiz.featuredImage}
-                alt={weekQuiz.title}
-                className="w-full sm:w-56 h-40 object-cover rounded-lg flex-none"
-              />
-            )}
+            <img
+              src={quizCoverImage(weekQuiz.category, weekQuiz.featuredImage)}
+              alt={weekQuiz.title}
+              className="w-full sm:w-56 h-40 object-cover rounded-lg flex-none"
+            />
             <div className="flex-1">
               <p className="text-[11px] font-bold uppercase tracking-widest text-primary mb-2">
                 Quiz of the Week
@@ -682,66 +665,6 @@ export default function Home() {
           </div>
         </section>
       )}
-
-      {/* ══════════════════════════════════════════
-          SECTION 6: Never Miss a Moment (pre-footer CTA)
-      ══════════════════════════════════════════ */}
-      <section className="bg-surface-dark text-white py-10">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col lg:flex-row items-center gap-8">
-          {/* Logo + tagline */}
-          <div className="flex items-center gap-3 flex-none">
-            <img src="/tfs-logo.png" alt="TFS" className="w-10 h-10 rounded-full" />
-            <div>
-              <p className="font-black text-sm">
-                THE FASTEST <span className="text-primary">SECTOR</span>
-              </p>
-              <p className="text-xs text-white/50">Passion. Analysis. Every Sector.</p>
-            </div>
-          </div>
-
-          {/* Quick links */}
-          <div className="grid grid-cols-2 gap-x-10 gap-y-1 text-xs text-white/60">
-            {[
-              { label: 'Latest News', to: '/category/formula-1' },
-              { label: 'F1 News', to: '/category/formula-1' },
-              { label: 'Series News', to: '/category/feeder-series' },
-              { label: 'Featured Topics', to: '/category/formula-1' },
-              { label: 'Standings', to: '/standings' },
-              { label: 'Schedule', to: '/schedule' },
-              { label: 'Quizzes', to: '/quizzes' },
-              { label: 'About Us', to: '/about' },
-            ].map((l) => (
-              <Link key={l.label} to={l.to} className="hover:text-white transition-colors py-0.5">
-                {l.label}
-              </Link>
-            ))}
-          </div>
-
-          {/* Newsletter CTA */}
-          <div className="lg:ml-auto flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="flex items-center gap-2">
-              <Mail className="w-5 h-5 text-primary" />
-              <div>
-                <p className="text-sm font-black">Never Miss a Moment</p>
-                <p className="text-xs text-white/50">All the latest motorsport news straight to your inbox.</p>
-              </div>
-            </div>
-            <form onSubmit={(e) => e.preventDefault()} className="flex gap-2">
-              <input
-                type="email"
-                placeholder="Enter your email"
-                className="px-3 py-2 bg-white/10 border border-white/20 rounded text-sm text-white placeholder:text-white/40 focus:outline-none focus:border-primary w-48"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2 bg-primary text-white text-xs font-bold uppercase tracking-wider rounded hover:bg-primary-dark transition-colors whitespace-nowrap"
-              >
-                Subscribe Now
-              </button>
-            </form>
-          </div>
-        </div>
-      </section>
     </div>
   )
 }

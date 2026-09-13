@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750" role="img" aria-label="Formula E quiz cover">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#005f8a"/>
+      <stop offset="50%" stop-color="#0090d0"/>
+      <stop offset="100%" stop-color="#003f5c"/>
+    </linearGradient>
+    <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="4" r="2" fill="#ffffff" fill-opacity="0.12"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)"/>
+  <rect width="1200" height="750" fill="url(#dots)"/>
+  <path d="M860 120 L980 120 L1030 220 L930 220 Z" fill="#ffffff" fill-opacity="0.12"/>
+  <path d="M180 560 L420 560 L470 660 L130 660 Z" fill="#ffffff" fill-opacity="0.08"/>
+  <path d="M220 430 C360 350, 520 500, 680 390 S940 300, 1060 220" fill="none" stroke="#ffffff" stroke-opacity="0.24" stroke-width="10" stroke-linecap="round"/>
+  <text x="72" y="120" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" letter-spacing="6">FORMULA E</text>
+  <text x="72" y="170" fill="#ffffff" fill-opacity="0.72" font-family="Arial, Helvetica, sans-serif" font-size="22">Electric racing challenge</text>
+</svg>

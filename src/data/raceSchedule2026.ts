@@ -703,6 +703,19 @@ export function buildRaceSchedule(now: number = Date.now()): RaceEvent[] {
   })
 }
 
+/** Formula E + F1 Academy static rows (no reliable live API yet). */
+export function buildStaticOtherSeriesSchedule(now: number = Date.now()): RaceEvent[] {
+  const sod = startOfTodayTimestamp(now)
+
+  return RAW.filter((row) => row.series === 'fe' || row.series === 'f1-academy').map((row) => {
+    const end = endOfDayTimestamp(row.endDate)
+    return {
+      ...row,
+      status: end < sod ? 'completed' : 'upcoming',
+    }
+  })
+}
+
 export function sortEventsChronologically(events: RaceEvent[]): RaceEvent[] {
   return [...events].sort((a, b) => {
     const diff = new Date(a.date).getTime() - new Date(b.date).getTime()

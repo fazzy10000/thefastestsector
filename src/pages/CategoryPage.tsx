@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { format } from 'date-fns'
 import { ChevronRight } from 'lucide-react'
 import ArticleCard from '../components/ArticleCard'
+import Pagination from '../components/Pagination'
 import RacingLoader from '../components/RacingLoader'
 import RaceCountdown from '../components/RaceCountdown'
 import LatestResults from '../components/LatestResults'
@@ -11,9 +12,13 @@ import { useArticles } from '../hooks/useArticles'
 import { fetchF1Standings, getFeederSeriesStandings, getIndyCarStandings, getFormulaEStandings, getF1AcademyStandings } from '../lib/standingsApi'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/types'
 import type { Article, Category } from '../lib/types'
-import { buildRaceSchedule, sortEventsChronologically } from '../data/raceSchedule2026'
+import { useRaceSchedule } from '../hooks/useRaceSchedule'
+import { sortEventsChronologically } from '../data/raceSchedule2026'
 import { flagEmojiFromCountryCode } from '../lib/countryFlags'
+import { schedulePath } from '../lib/scheduleLinks'
 import { formatDistanceToNow } from 'date-fns'
+
+const PAGE_SIZE = 12
 
 function safeTimeAgo(ts: number | null | undefined): string {
   if (!ts || isNaN(ts)) return ''
@@ -37,6 +42,7 @@ const CATEGORY_SERIES: Record<string, 'f1' | 'fe' | 'indycar' | 'f1-academy'> = 
 }
 
 const CATEGORY_TAGLINES: Record<string, string> = {
+  news: 'The latest motorsport news from Formula 1, IndyCar, Formula E, feeder series and more.',
   'formula-1': 'The latest Formula 1 news, results, features and expert analysis from around the world.',
   'formula-e': 'Electric. Global. Cities. The latest Formula E news, results and features.',
   'indycar': 'The latest IndyCar news, results, features and exclusive interviews.',
@@ -46,19 +52,17 @@ const CATEGORY_TAGLINES: Record<string, string> = {
   'other': 'More motorsport content from The Fastest Sector.',
 }
 
-const TABS = ['news', 'results', 'features', 'standings', 'calendar'] as const
+const TABS = ['news', 'results', 'features'] as const
 type Tab = typeof TABS[number]
+
+function isTab(value: string | null): value is Tab {
+  return TABS.includes(value as Tab)
+}
 
 interface StandingsDriver {
   position: number
   name: string
   team: string
-  points: number
-}
-
-interface StandingsConstructor {
-  position: number
-  name: string
   points: number
 }
 
@@ -84,36 +88,38 @@ function CompactArticleRow({ article }: { article: Article }) {
 
 export default function CategoryPage() {
   const { category } = useParams<{ category: string }>()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const isNewsHub = category === 'news'
   const cat = (category ?? 'other') as Category
-  const { articles, loading } = useArticles()
-  const [activeTab, setActiveTab] = useState<Tab>('news')
+  const { articles, meta, loading, fetchArticles } = useArticles()
+  const tabParam = searchParams.get('tab')
+  const page = Math.max(1, Number(searchParams.get('page') || '1') || 1)
+  const [activeTab, setActiveTab] = useState<Tab>(() => (isTab(tabParam) ? tabParam : 'news'))
   const [standingsDrivers, setStandingsDrivers] = useState<StandingsDriver[]>([])
-  const [standingsConstructors, setStandingsConstructors] = useState<StandingsConstructor[]>([])
-  const [standingsTab, setStandingsTab] = useState<'drivers' | 'constructors'>('drivers')
 
-  const categoryArticles = useMemo(
-    () => articles.filter((a) => a.status === 'published' && a.category === cat),
-    [articles, cat],
-  )
+  useEffect(() => {
+    setActiveTab(isTab(tabParam) ? tabParam : 'news')
+  }, [tabParam, category])
 
-  const newsArticles = useMemo(
-    () => categoryArticles.filter((a) => (a.contentType ?? 'news') === 'news'),
-    [categoryArticles],
-  )
-  const resultsArticles = useMemo(
-    () => categoryArticles.filter((a) => a.contentType === 'results'),
-    [categoryArticles],
-  )
-  const featuresArticles = useMemo(
-    () => categoryArticles.filter((a) => a.contentType === 'opinion'),
-    [categoryArticles],
-  )
+  const contentTypeForTab =
+    activeTab === 'results' ? 'results' : activeTab === 'features' ? 'opinion' : 'news'
 
-  const label = CATEGORY_LABELS[cat] ?? 'Other'
-  const tagline = CATEGORY_TAGLINES[cat] ?? ''
-  const seriesKey = CATEGORY_SERIES[cat] ?? null
+  useEffect(() => {
+    const opts: Parameters<typeof fetchArticles>[0] = {
+      status: 'published',
+      contentType: contentTypeForTab,
+      page,
+      limit: PAGE_SIZE,
+    }
+    if (!isNewsHub) opts.category = cat
+    void fetchArticles(opts)
+  }, [fetchArticles, cat, isNewsHub, contentTypeForTab, page])
 
-  const schedule = useMemo(() => buildRaceSchedule(Date.now()), [])
+  const label = isNewsHub ? 'News' : (CATEGORY_LABELS[cat] ?? 'Other')
+  const tagline = CATEGORY_TAGLINES[isNewsHub ? 'news' : cat] ?? ''
+  const seriesKey = isNewsHub ? null : (CATEGORY_SERIES[cat] ?? null)
+
+  const { events: schedule } = useRaceSchedule()
 
   const nextEvent = useMemo(() => {
     if (!seriesKey) return null
@@ -155,23 +161,36 @@ export default function CategoryPage() {
             points: d.points,
           })),
         )
-        setStandingsConstructors(
-          data.constructors.slice(0, 10).map((c) => ({
-            position: c.position,
-            name: c.name,
-            points: c.points,
-          })),
-        )
       } catch {
         // standings unavailable
       }
     }
-    load()
-  }, [cat])
+    if (!isNewsHub) load()
+  }, [cat, isNewsHub])
 
-  const featuredArticle = newsArticles[0] ?? null
-  const moreNews = newsArticles.slice(1, 4)
-  const latestNewsGrid = newsArticles.slice(4)
+  const selectTab = (tab: Tab) => {
+    setActiveTab(tab)
+    const next = new URLSearchParams(searchParams)
+    next.delete('page')
+    if (tab === 'news') next.delete('tab')
+    else next.set('tab', tab)
+    setSearchParams(next, { replace: true })
+  }
+
+  const setPage = (p: number) => {
+    const next = new URLSearchParams(searchParams)
+    if (p <= 1) next.delete('page')
+    else next.set('page', String(p))
+    setSearchParams(next)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  // Page 1 news tab: featured + 3 compact + rest as cards. Later pages: all cards.
+  const featuredArticle = activeTab === 'news' && page === 1 ? articles[0] ?? null : null
+  const moreNews = activeTab === 'news' && page === 1 ? articles.slice(1, 4) : []
+  const latestNewsGrid =
+    activeTab === 'news' ? (page === 1 ? articles.slice(4) : articles) : []
+  const tabArticles = activeTab === 'news' ? [] : articles
 
   if (loading) {
     return (
@@ -185,7 +204,6 @@ export default function CategoryPage() {
     <div>
       <SEO title={`${label} | The Fastest Sector`} description={tagline} />
 
-      {/* Category header band */}
       <section className="bg-surface-dark text-white py-8 px-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div>
@@ -205,7 +223,7 @@ export default function CategoryPage() {
               </div>
               <RaceCountdown targetDate={nextEventDate} />
               <Link
-                to="/schedule"
+                to={schedulePath(seriesKey)}
                 className="block text-center mt-3 text-[10px] font-bold uppercase tracking-wider text-primary hover:underline"
               >
                 View Full Schedule
@@ -215,14 +233,13 @@ export default function CategoryPage() {
         </div>
       </section>
 
-      {/* Tab bar */}
       <div className="bg-white dark:bg-surface-dark border-b border-gray-200 dark:border-white/10 sticky top-[88px] z-30">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex overflow-x-auto scrollbar-hide">
             {TABS.map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab)}
+                onClick={() => selectTab(tab)}
                 className={`px-5 py-3 text-xs font-bold uppercase tracking-wider whitespace-nowrap border-b-2 transition-colors ${
                   activeTab === tab
                     ? 'border-primary text-primary'
@@ -237,14 +254,11 @@ export default function CategoryPage() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-
-        {/* NEWS tab */}
         {activeTab === 'news' && (
           <div className="grid lg:grid-cols-[1fr_300px] gap-8">
-            {/* Main content */}
             <div>
-              {categoryArticles.length === 0 ? (
-                <p className="text-text-secondary dark:text-white/50">No {label} articles yet.</p>
+              {articles.length === 0 ? (
+                <p className="text-text-secondary dark:text-white/50">No {label.toLowerCase()} articles yet.</p>
               ) : (
                 <>
                   <h2 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-4 flex items-center gap-2">
@@ -252,7 +266,6 @@ export default function CategoryPage() {
                     Top Stories
                   </h2>
 
-                  {/* Featured article */}
                   {featuredArticle && (
                     <Link
                       to={`/article/${featuredArticle.slug}`}
@@ -268,7 +281,7 @@ export default function CategoryPage() {
                           <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                           <div className="absolute bottom-0 left-0 p-4">
                             <span className={`${CATEGORY_COLORS[featuredArticle.category]} text-white text-[10px] font-bold px-2 py-0.5 rounded mb-2 inline-block`}>
-                              Top Story
+                              {isNewsHub ? CATEGORY_LABELS[featuredArticle.category] : 'Top Story'}
                             </span>
                             <h3 className="text-white text-xl font-black leading-tight line-clamp-2 group-hover:text-primary/90 transition-colors">
                               {featuredArticle.title}
@@ -281,7 +294,7 @@ export default function CategoryPage() {
                       ) : (
                         <div className="p-4">
                           <span className={`${CATEGORY_COLORS[featuredArticle.category]} text-white text-[10px] font-bold px-2 py-0.5 rounded mb-2 inline-block`}>
-                            Top Story
+                            {isNewsHub ? CATEGORY_LABELS[featuredArticle.category] : 'Top Story'}
                           </span>
                           <h3 className="text-lg font-black text-text-primary dark:text-white group-hover:text-primary transition-colors">
                             {featuredArticle.title}
@@ -291,19 +304,17 @@ export default function CategoryPage() {
                     </Link>
                   )}
 
-                  {/* Secondary articles */}
                   <div className="mb-6">
                     {moreNews.map((a) => (
                       <CompactArticleRow key={a.id} article={a} />
                     ))}
                   </div>
 
-                  {/* Latest news grid */}
                   {latestNewsGrid.length > 0 && (
                     <div>
                       <h3 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-4 flex items-center gap-2">
                         <span className="w-1 h-4 bg-primary rounded-full inline-block" />
-                        Latest News
+                        {page === 1 ? 'Latest News' : `Page ${page}`}
                       </h3>
                       <div className="grid sm:grid-cols-2 gap-4">
                         {latestNewsGrid.map((a) => (
@@ -312,21 +323,28 @@ export default function CategoryPage() {
                       </div>
                     </div>
                   )}
+
+                  <Pagination
+                    className="mt-8"
+                    page={page}
+                    total={meta.total}
+                    pageSize={PAGE_SIZE}
+                    onChange={setPage}
+                  />
                 </>
               )}
             </div>
 
-            {/* Sidebar */}
             <aside className="space-y-5">
-              {/* Latest Results */}
-              <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4">
-                <h4 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-3 pb-2 border-b border-gray-200 dark:border-white/10">
-                  Latest Results
-                </h4>
-                <LatestResults series={seriesKey === 'f1' ? 'f1' : seriesKey === 'fe' ? 'fe' : seriesKey === 'indycar' ? 'indycar' : 'f1'} compact />
-              </div>
+              {!isNewsHub && (
+                <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-3 pb-2 border-b border-gray-200 dark:border-white/10">
+                    Latest Results
+                  </h4>
+                  <LatestResults series={seriesKey === 'f1' ? 'f1' : seriesKey === 'fe' ? 'fe' : seriesKey === 'indycar' ? 'indycar' : seriesKey === 'f1-academy' ? 'f1-academy' : 'f2'} compact />
+                </div>
+              )}
 
-              {/* Driver Standings */}
               {standingsDrivers.length > 0 && (
                 <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4">
                   <h4 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-3 pb-2 border-b border-gray-200 dark:border-white/10">
@@ -345,13 +363,12 @@ export default function CategoryPage() {
                 </div>
               )}
 
-              {/* Series Calendar */}
               {seriesCalendar.length > 0 && (
                 <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4">
                   <h4 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-3 pb-2 border-b border-gray-200 dark:border-white/10">
                     {label} Calendar
                   </h4>
-                  {seriesCalendar.slice(0, 5).map((event) => (
+                  {seriesCalendar.map((event) => (
                     <div key={event.id} className="flex items-center gap-2 py-1.5 border-b border-gray-200 dark:border-white/5 last:border-0">
                       <span className="text-base">{flagEmojiFromCountryCode(event.countryCode)}</span>
                       <div className="min-w-0 flex-1">
@@ -360,166 +377,86 @@ export default function CategoryPage() {
                       </div>
                     </div>
                   ))}
-                  <Link to="/schedule" className="block text-center text-[11px] font-bold uppercase tracking-wider text-primary hover:underline mt-3">
+                  <Link to={schedulePath(seriesKey)} className="block text-center text-[11px] font-bold uppercase tracking-wider text-primary hover:underline mt-3">
                     Full Calendar <ChevronRight className="inline w-3 h-3" />
                   </Link>
+                </div>
+              )}
+
+              {isNewsHub && (
+                <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4">
+                  <h4 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-3 pb-2 border-b border-gray-200 dark:border-white/10">
+                    Browse by Series
+                  </h4>
+                  {[
+                    { label: 'Formula 1', to: '/category/formula-1' },
+                    { label: 'Feeder Series', to: '/category/feeder-series' },
+                    { label: 'F1 Academy', to: '/category/f1-academy' },
+                    { label: 'IndyCar', to: '/category/indycar' },
+                    { label: 'Formula E', to: '/category/formula-e' },
+                  ].map((item) => (
+                    <Link
+                      key={item.to}
+                      to={item.to}
+                      className="flex items-center justify-between py-2 text-sm font-semibold text-text-primary dark:text-white hover:text-primary border-b border-gray-200 dark:border-white/5 last:border-0"
+                    >
+                      {item.label}
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  ))}
                 </div>
               )}
             </aside>
           </div>
         )}
 
-        {/* RESULTS tab */}
         {activeTab === 'results' && (
           <div>
             <h2 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-4 flex items-center gap-2">
               <span className="w-1 h-4 bg-primary rounded-full inline-block" />
               Results
             </h2>
-            {resultsArticles.length === 0 ? (
+            {tabArticles.length === 0 ? (
               <p className="text-text-secondary dark:text-white/50">No results articles yet.</p>
             ) : (
-              <div className="grid md:grid-cols-2 gap-6">
-                {resultsArticles.map((a) => <ArticleCard key={a.id} article={a} />)}
-              </div>
+              <>
+                <div className="grid md:grid-cols-2 gap-6">
+                  {tabArticles.map((a) => <ArticleCard key={a.id} article={a} />)}
+                </div>
+                <Pagination
+                  className="mt-8"
+                  page={page}
+                  total={meta.total}
+                  pageSize={PAGE_SIZE}
+                  onChange={setPage}
+                />
+              </>
             )}
           </div>
         )}
 
-        {/* FEATURES tab */}
         {activeTab === 'features' && (
           <div>
             <h2 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-4 flex items-center gap-2">
               <span className="w-1 h-4 bg-primary rounded-full inline-block" />
               Features &amp; Analysis
             </h2>
-            {featuresArticles.length === 0 ? (
+            {tabArticles.length === 0 ? (
               <p className="text-text-secondary dark:text-white/50">No feature articles yet.</p>
             ) : (
-              <div className="grid md:grid-cols-2 gap-6">
-                {featuresArticles.map((a) => <ArticleCard key={a.id} article={a} />)}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* STANDINGS tab */}
-        {activeTab === 'standings' && (
-          <div>
-            <h2 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-4 flex items-center gap-2">
-              <span className="w-1 h-4 bg-primary rounded-full inline-block" />
-              {label} Standings
-            </h2>
-            {standingsDrivers.length === 0 ? (
-              <p className="text-text-secondary dark:text-white/50">Standings not available for this series.</p>
-            ) : (
-              <div>
-                {/* Tab toggle */}
-                <div className="flex gap-1 mb-4 bg-gray-100 dark:bg-white/10 p-1 rounded-lg w-fit">
-                  {(['drivers', 'constructors'] as const).map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setStandingsTab(tab)}
-                      className={`px-5 py-2 rounded-md text-xs font-bold uppercase tracking-wider transition-colors ${
-                        standingsTab === tab
-                          ? 'bg-primary text-white shadow-sm'
-                          : 'text-text-secondary dark:text-white/50 hover:text-text-primary dark:hover:text-white'
-                      }`}
-                    >
-                      {tab}
-                    </button>
-                  ))}
+              <>
+                <div className="grid md:grid-cols-2 gap-6">
+                  {tabArticles.map((a) => <ArticleCard key={a.id} article={a} />)}
                 </div>
-
-                {standingsTab === 'drivers' && (
-                  <div className="bg-white dark:bg-white/5 rounded-xl overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 dark:bg-white/10 text-left">
-                          <th className="py-2.5 px-4 text-xs font-bold uppercase tracking-wider text-text-secondary dark:text-white/50">#</th>
-                          <th className="py-2.5 px-4 text-xs font-bold uppercase tracking-wider text-text-secondary dark:text-white/50">Driver</th>
-                          <th className="py-2.5 px-4 text-xs font-bold uppercase tracking-wider text-text-secondary dark:text-white/50">Team</th>
-                          <th className="py-2.5 px-4 text-xs font-bold uppercase tracking-wider text-text-secondary dark:text-white/50 text-right">Pts</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {standingsDrivers.map((row) => (
-                          <tr key={row.position} className="border-t border-gray-100 dark:border-white/5">
-                            <td className="py-2.5 px-4 font-bold text-text-secondary dark:text-white/50">{row.position}</td>
-                            <td className="py-2.5 px-4 font-bold text-text-primary dark:text-white">{row.name}</td>
-                            <td className="py-2.5 px-4 text-text-secondary dark:text-white/60">{row.team}</td>
-                            <td className="py-2.5 px-4 font-black text-text-primary dark:text-white text-right">{row.points}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                {standingsTab === 'constructors' && (
-                  standingsConstructors.length === 0 ? (
-                    <p className="text-text-secondary dark:text-white/50">No constructor standings available.</p>
-                  ) : (
-                    <div className="bg-white dark:bg-white/5 rounded-xl overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-gray-50 dark:bg-white/10 text-left">
-                            <th className="py-2.5 px-4 text-xs font-bold uppercase tracking-wider text-text-secondary dark:text-white/50">#</th>
-                            <th className="py-2.5 px-4 text-xs font-bold uppercase tracking-wider text-text-secondary dark:text-white/50">Constructor</th>
-                            <th className="py-2.5 px-4 text-xs font-bold uppercase tracking-wider text-text-secondary dark:text-white/50 text-right">Pts</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {standingsConstructors.map((row) => (
-                            <tr key={row.position} className="border-t border-gray-100 dark:border-white/5">
-                              <td className="py-2.5 px-4 font-bold text-text-secondary dark:text-white/50">{row.position}</td>
-                              <td className="py-2.5 px-4 font-bold text-text-primary dark:text-white">{row.name}</td>
-                              <td className="py-2.5 px-4 font-black text-text-primary dark:text-white text-right">{row.points}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )
-                )}
-
-                <Link to="/standings" className="inline-block mt-4 text-sm font-bold text-primary hover:underline">
-                  View Full Standings →
-                </Link>
-              </div>
+                <Pagination
+                  className="mt-8"
+                  page={page}
+                  total={meta.total}
+                  pageSize={PAGE_SIZE}
+                  onChange={setPage}
+                />
+              </>
             )}
-          </div>
-        )}
-
-        {/* CALENDAR tab */}
-        {activeTab === 'calendar' && (
-          <div>
-            <h2 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-4 flex items-center gap-2">
-              <span className="w-1 h-4 bg-primary rounded-full inline-block" />
-              {label} Calendar
-            </h2>
-            {seriesCalendar.length === 0 ? (
-              <p className="text-text-secondary dark:text-white/50">No upcoming events for this series.</p>
-            ) : (
-              <div className="space-y-3">
-                {seriesCalendar.map((event) => (
-                  <div key={event.id} className="flex items-center gap-4 p-4 bg-white dark:bg-white/5 rounded-xl">
-                    <span className="text-3xl">{flagEmojiFromCountryCode(event.countryCode)}</span>
-                    <div className="flex-1">
-                      <p className="font-black text-text-primary dark:text-white">{event.name}</p>
-                      <p className="text-sm text-text-secondary dark:text-white/60">{event.circuit}</p>
-                      <p className="text-xs text-text-secondary dark:text-white/40 mt-0.5">{formatDateRange(event.date, event.endDate)}</p>
-                    </div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-text-secondary dark:text-white/40">
-                      Round {event.round}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <Link to="/schedule" className="inline-block mt-4 text-sm font-bold text-primary hover:underline">
-              View Full Schedule →
-            </Link>
           </div>
         )}
       </div>

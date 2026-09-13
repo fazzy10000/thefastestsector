@@ -31,6 +31,30 @@ const STATIC_RESULTS: Record<string, SeriesResult> = {
       { position: 3, code: 'FOR', team: 'Invicta', gap: '+4.7s' },
     ],
   },
+  f3: {
+    series: 'F3',
+    badge: 'F3',
+    badgeColor: 'bg-sky-700',
+    raceName: 'Feature Race',
+    venue: 'Spain',
+    rows: [
+      { position: 1, code: 'CAM', team: 'Trident', gap: 'Winner' },
+      { position: 2, code: 'TSO', team: 'ART', gap: '+1.8s' },
+      { position: 3, code: 'TAP', team: 'ART', gap: '+3.4s' },
+    ],
+  },
+  'f1-academy': {
+    series: 'F1 Academy',
+    badge: 'F1A',
+    badgeColor: 'bg-pink-600',
+    raceName: 'Feature Race',
+    venue: 'Miami',
+    rows: [
+      { position: 1, code: 'PIN', team: 'Prema', gap: 'Winner' },
+      { position: 2, code: 'PUL', team: 'Rodin', gap: '+2.4s' },
+      { position: 3, code: 'ALQ', team: 'Prema', gap: '+5.1s' },
+    ],
+  },
   indycar: {
     series: 'IndyCar',
     badge: 'INDYCAR',
@@ -58,11 +82,12 @@ const STATIC_RESULTS: Record<string, SeriesResult> = {
 }
 
 interface Props {
-  series: 'f1' | 'f2' | 'indycar' | 'fe'
+  series: 'f1' | 'f2' | 'f3' | 'indycar' | 'fe' | 'f1-academy'
   compact?: boolean
+  standingsHref?: string
 }
 
-export default function LatestResults({ series, compact = false }: Props) {
+export default function LatestResults({ series, compact = false, standingsHref = '/standings' }: Props) {
   const [f1Result, setF1Result] = useState<SeriesResult | null>(null)
   const [f1Loading, setF1Loading] = useState(series === 'f1')
 
@@ -147,7 +172,7 @@ export default function LatestResults({ series, compact = false }: Props) {
         </tbody>
       </table>
       <Link
-        to="/standings"
+        to={standingsHref}
         className="block text-center text-[11px] font-bold uppercase tracking-wider text-primary hover:underline mt-2"
       >
         Full Results

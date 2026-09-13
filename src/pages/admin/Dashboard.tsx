@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { formatDistanceToNow, format } from 'date-fns'
 import { useArticles } from '../../hooks/useArticles'
 import { CATEGORY_LABELS } from '../../lib/types'
 import type { Article } from '../../lib/types'
+import Pagination from '../../components/Pagination'
 import {
   PlusCircle,
   Edit,
@@ -15,28 +16,38 @@ import {
   CalendarClock,
 } from 'lucide-react'
 
+const PAGE_SIZE = 20
+
 export default function Dashboard() {
-  const { fetchArticles, removeArticle, updateArticle } = useArticles()
+  const { fetchArticles, removeArticle, updateArticle, meta } = useArticles()
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all')
+  const [page, setPage] = useState(1)
 
-  const loadArticles = async () => {
+  const loadArticles = useCallback(async () => {
     setLoading(true)
-    const opts = filter === 'all' ? {} : { status: filter as 'published' | 'draft' | 'scheduled' }
+    const opts =
+      filter === 'all'
+        ? { page, limit: PAGE_SIZE }
+        : { status: filter as 'published' | 'draft' | 'scheduled', page, limit: PAGE_SIZE }
     const data = await fetchArticles(opts)
     setArticles(data)
     setLoading(false)
-  }
+  }, [fetchArticles, filter, page])
 
   useEffect(() => {
-    loadArticles()
+    void loadArticles()
+  }, [loadArticles])
+
+  useEffect(() => {
+    setPage(1)
   }, [filter])
 
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this article?')) return
     await removeArticle(id)
-    loadArticles()
+    void loadArticles()
   }
 
   const toggleStatus = async (article: Article) => {
@@ -47,17 +58,19 @@ export default function Dashboard() {
       scheduledAt: null,
       updatedAt: Date.now(),
     })
-    loadArticles()
+    void loadArticles()
   }
 
-  const published = articles.filter((a) => a.status === 'published').length
-  const drafts = articles.filter((a) => a.status === 'draft').length
-  const scheduled = articles.filter((a) => a.status === 'scheduled').length
+  const published = meta.counts?.published ?? 0
+  const drafts = meta.counts?.draft ?? 0
+  const scheduled = meta.counts?.scheduled ?? 0
+  const totalAll = meta.counts?.all ?? meta.total
+  const listTotal = meta.total
 
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-8">
-        <div>
+        <div data-tour="dashboard-header">
           <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
           <p className="text-gray-500 text-sm mt-1">Manage your articles and content</p>
         </div>
@@ -78,7 +91,7 @@ export default function Dashboard() {
               <FileText className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-gray-900">{articles.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{totalAll}</p>
               <p className="text-xs text-gray-500">Total Articles</p>
             </div>
           </div>
@@ -136,7 +149,7 @@ export default function Dashboard() {
       </div>
 
       {/* Article list */}
-      <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
+      <div className="bg-white rounded-xl shadow-sm overflow-x-auto" data-tour="dashboard-list">
         {loading ? (
           <div className="p-8 text-center text-gray-400">Loading articles...</div>
         ) : articles.length === 0 ? (
@@ -240,6 +253,15 @@ export default function Dashboard() {
           </table>
         )}
       </div>
+
+      <Pagination
+        variant="admin"
+        className="mt-4"
+        page={page}
+        total={listTotal}
+        pageSize={PAGE_SIZE}
+        onChange={setPage}
+      />
     </div>
   )
 }

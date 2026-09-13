@@ -1,151 +1,47 @@
-import { useState, useCallback } from 'react'
-import { doc, setDoc } from 'firebase/firestore'
-import { db, isDemoMode, isFirebaseConfigured } from '../../lib/firebase'
-import { Upload, CheckCircle, AlertCircle, Loader2 } from 'lucide-react'
+import { useState } from 'react'
+import { Terminal, CheckCircle } from 'lucide-react'
 
 export default function ImportPage() {
-  const [importing, setImporting] = useState(false)
-  const [progress, setProgress] = useState({ done: 0, total: 0, errors: 0 })
-  const [finished, setFinished] = useState(false)
-  const [log, setLog] = useState<string[]>([])
+  const [copied, setCopied] = useState(false)
 
-  const addLog = useCallback((msg: string) => {
-    setLog((prev) => [...prev.slice(-200), msg])
-  }, [])
-
-  const handleImport = useCallback(async () => {
-    if (isDemoMode || !isFirebaseConfigured || !db) {
-      addLog('Import requires real Firebase. Set VITE_USE_FIREBASE=true and restart the dev server.')
-      return
-    }
-
-    setImporting(true)
-    setFinished(false)
-    setLog([])
-
-    try {
-      addLog('Loading import data...')
-      const mod = await import('../../data/wp-import.json')
-      const data = mod.default || mod
-
-      const articles = data.articles || []
-      const authors = data.authors || []
-      setProgress({ done: 0, total: articles.length + authors.length, errors: 0 })
-
-      addLog(`Importing ${authors.length} authors...`)
-      let errors = 0
-      for (const author of authors) {
-        try {
-          await setDoc(doc(db!, 'authors', author.id), author)
-          setProgress((p) => ({ ...p, done: p.done + 1 }))
-        } catch (e) {
-          errors++
-          addLog(`  Error: author "${author.name}": ${e}`)
-          setProgress((p) => ({ ...p, done: p.done + 1, errors: p.errors + 1 }))
-        }
-      }
-      addLog(`Authors done.`)
-
-      addLog(`Importing ${articles.length} articles...`)
-      const BATCH = 5
-      for (let i = 0; i < articles.length; i += BATCH) {
-        const batch = articles.slice(i, i + BATCH)
-        const results = await Promise.allSettled(
-          batch.map((article: Record<string, unknown>) =>
-            setDoc(doc(db!, 'articles', article.id as string), article),
-          ),
-        )
-        for (const r of results) {
-          if (r.status === 'rejected') {
-            errors++
-            addLog(`  Error: ${r.reason}`)
-          }
-        }
-        setProgress((p) => ({
-          ...p,
-          done: p.done + batch.length,
-          errors,
-        }))
-        if ((i + BATCH) % 50 === 0) {
-          addLog(`  ... ${Math.min(i + BATCH, articles.length)}/${articles.length}`)
-        }
-      }
-
-      addLog(`\nImport complete! ${articles.length + authors.length - errors} succeeded, ${errors} errors.`)
-      setFinished(true)
-    } catch (e) {
-      addLog(`Fatal error: ${e}`)
-    } finally {
-      setImporting(false)
-    }
-  }, [addLog])
-
-  const pct = progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0
+  const command = 'npm run seed:d1'
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 mb-2">Import Articles</h1>
       <p className="text-sm text-gray-500 mb-6">
-        Import all articles from the original WordPress site into Firebase.
-        This uses your authenticated session to write directly to Firestore.
+        Content lives in Cloudflare D1. Seed authors and WordPress articles from{' '}
+        <code className="text-xs bg-gray-100 px-1 rounded">src/data/wp-import.json</code> using the CLI.
       </p>
 
-      {(isDemoMode || !isFirebaseConfigured) && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-6">
-          <p className="text-sm text-amber-800 font-medium flex items-center gap-2">
-            <AlertCircle className="w-4 h-4" />
-            {isDemoMode
-              ? 'Demo mode is active — import needs real Firebase (VITE_USE_FIREBASE=true).'
-              : 'Firebase is not configured. Import requires a Firebase connection.'}
-          </p>
-        </div>
-      )}
-
-      {!importing && !finished && (
-        <button
-          onClick={handleImport}
-          disabled={isDemoMode || !isFirebaseConfigured}
-          className="flex items-center gap-2 px-5 py-3 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
-        >
-          <Upload className="w-4 h-4" />
-          Start Import (579 articles + 16 authors)
-        </button>
-      )}
-
-      {importing && (
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Loader2 className="w-5 h-5 text-primary animate-spin" />
-            <span className="text-sm font-medium text-gray-700">
-              Importing... {progress.done}/{progress.total} ({pct}%)
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div
-              className="bg-primary h-2.5 rounded-full transition-all duration-300"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {finished && (
-        <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-4">
-          <p className="text-sm text-green-800 font-medium flex items-center gap-2">
-            <CheckCircle className="w-4 h-4" />
-            Import complete! {progress.done - progress.errors} items uploaded
-            {progress.errors > 0 && ` (${progress.errors} errors)`}.
-          </p>
-        </div>
-      )}
-
-      {log.length > 0 && (
-        <div className="mt-4 bg-gray-900 rounded-lg p-4 max-h-80 overflow-y-auto">
-          <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">
-            {log.join('\n')}
+      <div className="bg-white border border-gray-200 rounded-xl p-5 max-w-xl space-y-4">
+        <p className="text-sm text-gray-700">
+          Run this from the project root (uses Wrangler + your D1 database). It also creates a bootstrap
+          admin if <code className="text-xs bg-gray-100 px-1 rounded">SEED_ADMIN_EMAIL</code> and{' '}
+          <code className="text-xs bg-gray-100 px-1 rounded">SEED_ADMIN_PASSWORD</code> are set.
+        </p>
+        <div className="flex items-center gap-2">
+          <pre className="flex-1 text-sm bg-gray-900 text-gray-100 rounded-lg px-4 py-3 overflow-x-auto">
+            {command}
           </pre>
+          <button
+            type="button"
+            onClick={async () => {
+              await navigator.clipboard.writeText(command)
+              setCopied(true)
+              window.setTimeout(() => setCopied(false), 1500)
+            }}
+            className="px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50"
+          >
+            {copied ? <CheckCircle className="w-4 h-4 text-green-600" /> : 'Copy'}
+          </button>
         </div>
-      )}
+        <p className="text-xs text-gray-500 flex items-start gap-2">
+          <Terminal className="w-4 h-4 mt-0.5 shrink-0" />
+          Add <code className="bg-gray-100 px-1 rounded">--remote</code> via{' '}
+          <code className="bg-gray-100 px-1 rounded">npm run seed:d1 -- --remote</code> to seed production D1.
+        </p>
+      </div>
     </div>
   )
 }

@@ -33,12 +33,8 @@ describe('ErrorBoundary', () => {
     expect(screen.getByRole('button', { name: /reset/i })).toBeInTheDocument()
   })
 
-  it('clears all localStorage keys on reset', () => {
-    localStorage.setItem('tfs_articles', 'data')
-    localStorage.setItem('tfs_articles_v', '3')
-    localStorage.setItem('tfs_demo_auth', 'true')
+  it('clears localStorage dark mode on reset', () => {
     localStorage.setItem('tfs_dark_mode', 'true')
-    localStorage.setItem('tfs_settings', '{}')
 
     const reloadMock = vi.fn()
     Object.defineProperty(window, 'location', {
@@ -54,11 +50,7 @@ describe('ErrorBoundary', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /reset/i }))
 
-    expect(localStorage.getItem('tfs_articles')).toBeNull()
-    expect(localStorage.getItem('tfs_articles_v')).toBeNull()
-    expect(localStorage.getItem('tfs_demo_auth')).toBeNull()
     expect(localStorage.getItem('tfs_dark_mode')).toBeNull()
-    expect(localStorage.getItem('tfs_settings')).toBeNull()
   })
 
   it('logs the error to console', () => {

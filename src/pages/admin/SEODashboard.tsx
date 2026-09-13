@@ -13,7 +13,12 @@ import {
   ExternalLink,
   ListChecks,
   Globe,
+  FolderOpen,
 } from 'lucide-react'
+import MediaPicker from '../../components/admin/MediaPicker'
+import Pagination from '../../components/Pagination'
+
+const SEO_PAGE_SIZE = 20
 
 const ROBOT_LABELS: Record<keyof GlobalSEOSettings['robotsDirectives'], string> = {
   home: 'Home',
@@ -77,6 +82,8 @@ export default function SEODashboard() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editDraft, setEditDraft] = useState<ArticleSEOOverride | null>(null)
   const [bulkWorking, setBulkWorking] = useState(false)
+  const [libraryOpen, setLibraryOpen] = useState(false)
+  const [tablePage, setTablePage] = useState(1)
 
   useEffect(() => {
     void fetchArticles({ status: 'published' })
@@ -93,6 +100,16 @@ export default function SEODashboard() {
         .sort((a, b) => (b.publishedAt ?? b.createdAt) - (a.publishedAt ?? a.createdAt)),
     [articles],
   )
+
+  const pagedPublished = useMemo(() => {
+    const start = (tablePage - 1) * SEO_PAGE_SIZE
+    return published.slice(start, start + SEO_PAGE_SIZE)
+  }, [published, tablePage])
+
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(published.length / SEO_PAGE_SIZE))
+    if (tablePage > maxPage) setTablePage(maxPage)
+  }, [published.length, tablePage])
 
   const checklist = useMemo(() => {
     const allMeta = published.every((a) => effectiveMeta(a, overrides[a.id]).trim().length > 0)
@@ -163,7 +180,12 @@ export default function SEODashboard() {
     try {
       for (const a of targets) {
         const gen = generateMetaFromExcerpt(a.excerpt || a.title)
-        await saveOverride(a.id, { metaDescription: gen })
+        await saveOverride(a.id, {
+          metaTitle: overrides[a.id]?.metaTitle ?? '',
+          metaDescription: gen,
+          focusKeyphrase: overrides[a.id]?.focusKeyphrase ?? '',
+          noIndex: overrides[a.id]?.noIndex ?? false,
+        })
       }
     } finally {
       setBulkWorking(false)
@@ -232,14 +254,24 @@ export default function SEODashboard() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Open Graph image URL</label>
-            <input
-              type="url"
-              value={form.ogImageUrl}
-              onChange={(e) => setForm((p) => ({ ...p, ogImageUrl: e.target.value }))}
-              placeholder="https://…"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-primary"
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Open Graph image</label>
+            <div className="flex gap-2">
+              <input
+                type="url"
+                value={form.ogImageUrl}
+                onChange={(e) => setForm((p) => ({ ...p, ogImageUrl: e.target.value }))}
+                placeholder="https://…"
+                className="flex-1 px-3 py-2.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-primary"
+              />
+              <button
+                type="button"
+                onClick={() => setLibraryOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <FolderOpen className="w-4 h-4" />
+                Library
+              </button>
+            </div>
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Google Analytics tracking ID</label>
@@ -301,7 +333,7 @@ export default function SEODashboard() {
       </section>
 
       {/* Checklist */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
+      <section className="bg-white rounded-xl border border-gray-200 p-6" data-tour="seo-checklist">
         <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
           <ListChecks className="w-5 h-5 text-primary" />
           SEO checklist
@@ -323,7 +355,7 @@ export default function SEODashboard() {
       </section>
 
       {/* Articles */}
-      <section className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <section className="bg-white rounded-xl border border-gray-200 overflow-hidden" data-tour="seo-articles">
         <div className="p-6 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="font-semibold text-gray-900">Article SEO overview</h2>
@@ -359,7 +391,7 @@ export default function SEODashboard() {
                   </td>
                 </tr>
               ) : (
-                published.map((article) => {
+                pagedPublished.map((article) => {
                   const o = overrides[article.id]
                   const meta = effectiveMeta(article, o)
                   const truncated = meta.length > 72 ? `${meta.slice(0, 72)}…` : meta
@@ -494,7 +526,23 @@ export default function SEODashboard() {
             </tbody>
           </table>
         </div>
+        <div className="px-4 py-3 border-t border-gray-100">
+          <Pagination
+            variant="admin"
+            page={tablePage}
+            total={published.length}
+            pageSize={SEO_PAGE_SIZE}
+            onChange={setTablePage}
+          />
+        </div>
       </section>
+      <MediaPicker
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        title="Choose Open Graph image"
+        imagesOnly
+        onSelect={(asset) => setForm((p) => ({ ...p, ogImageUrl: asset.url }))}
+      />
     </div>
   )
 }

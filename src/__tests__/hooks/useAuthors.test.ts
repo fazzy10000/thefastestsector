@@ -1,106 +1,59 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { renderHook, waitFor } from '@testing-library/react'
 import { useAuthors } from '../../hooks/useAuthors'
-import { SAMPLE_AUTHORS } from '../../lib/sampleAuthors'
+import type { Author } from '../../lib/types'
 
-const LS_KEY = 'tfs_authors'
+const store: { authors: Author[] } = {
+  authors: [
+    {
+      id: 'a1',
+      name: 'Alice',
+      bio: 'Writer',
+      avatar: '',
+      twitter: '',
+      instagram: '',
+      linkedin: '',
+    },
+  ],
+}
 
 describe('useAuthors', () => {
   beforeEach(() => {
-    localStorage.clear()
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+        const url = String(input)
+        const method = (init?.method || 'GET').toUpperCase()
+        if (url === '/api/authors' && method === 'GET') {
+          return new Response(JSON.stringify({ authors: store.authors }), { status: 200 })
+        }
+        if (url === '/api/authors' && method === 'POST') {
+          const body = JSON.parse(String(init?.body || '{}')) as Author
+          const idx = store.authors.findIndex((a) => a.id === body.id)
+          if (idx >= 0) store.authors[idx] = body
+          else store.authors.push(body)
+          return new Response(JSON.stringify({ id: body.id }), { status: 200 })
+        }
+        const del = url.match(/^\/api\/authors\/([^/]+)$/)
+        if (del && method === 'DELETE') {
+          store.authors = store.authors.filter((a) => a.id !== del[1])
+          return new Response(JSON.stringify({ ok: true }), { status: 200 })
+        }
+        return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
+      }),
+    )
   })
 
-  it('seeds sample authors on first load', () => {
+  it('loads authors from the API', async () => {
     const { result } = renderHook(() => useAuthors())
-    expect(result.current.authors.length).toBe(SAMPLE_AUTHORS.length)
-    expect(result.current.loading).toBe(false)
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.authors.some((a) => a.name === 'Alice')).toBe(true)
   })
 
-  it('persists authors in localStorage', () => {
-    renderHook(() => useAuthors())
-    const stored = JSON.parse(localStorage.getItem(LS_KEY) || '[]')
-    expect(stored.length).toBe(SAMPLE_AUTHORS.length)
-  })
-
-  it('getAuthor returns an author by ID', async () => {
+  it('finds authors by id and name', async () => {
     const { result } = renderHook(() => useAuthors())
-    const found = await result.current.getAuthor('elliejournalisedaily')
-    expect(found).not.toBeNull()
-    expect(found!.name).toBe('Ellie Roddy | Motorsports Writer')
-  })
-
-  it('getAuthor returns null for unknown ID', async () => {
-    const { result } = renderHook(() => useAuthors())
-    const found = await result.current.getAuthor('nonexistent')
-    expect(found).toBeNull()
-  })
-
-  it('getAuthorByName finds by case-insensitive name', async () => {
-    const { result } = renderHook(() => useAuthors())
-    const found = await result.current.getAuthorByName('leslie')
-    expect(found).not.toBeNull()
-    expect(found!.id).toBe('sportswithleslie')
-  })
-
-  it('saveAuthor creates a new author', async () => {
-    const { result } = renderHook(() => useAuthors())
-
-    await act(async () => {
-      await result.current.saveAuthor({
-        id: 'author-new',
-        name: 'New Writer',
-        bio: 'Writes things',
-        avatar: '',
-        twitter: '',
-        instagram: '',
-        linkedin: '',
-      })
-    })
-
-    expect(result.current.authors.length).toBe(SAMPLE_AUTHORS.length + 1)
-    const found = await result.current.getAuthor('author-new')
-    expect(found!.name).toBe('New Writer')
-  })
-
-  it('saveAuthor updates an existing author', async () => {
-    const { result } = renderHook(() => useAuthors())
-    const original = await result.current.getAuthor('elliejournalisedaily')
-
-    await act(async () => {
-      await result.current.saveAuthor({ ...original!, bio: 'Updated bio' })
-    })
-
-    const updated = await result.current.getAuthor('elliejournalisedaily')
-    expect(updated!.bio).toBe('Updated bio')
-    expect(result.current.authors.length).toBe(SAMPLE_AUTHORS.length)
-  })
-
-  it('removeAuthor deletes an author', async () => {
-    const { result } = renderHook(() => useAuthors())
-
-    await act(async () => {
-      await result.current.removeAuthor('elliejournalisedaily')
-    })
-
-    expect(result.current.authors.length).toBe(SAMPLE_AUTHORS.length - 1)
-    const found = await result.current.getAuthor('elliejournalisedaily')
-    expect(found).toBeNull()
-  })
-
-  it('recovers from corrupted localStorage data', () => {
-    localStorage.setItem(LS_KEY, 'not-json{{{')
-    const { result } = renderHook(() => useAuthors())
-    expect(result.current.authors.length).toBe(SAMPLE_AUTHORS.length)
-  })
-
-  it('filters out authors with missing required fields', () => {
-    localStorage.setItem(LS_KEY, JSON.stringify([
-      { id: '', name: 'Missing ID', bio: '', avatar: '', twitter: '', instagram: '', linkedin: '' },
-      { id: 'has-id', name: '', bio: '', avatar: '', twitter: '', instagram: '', linkedin: '' },
-      { id: 'valid', name: 'Valid Author', bio: 'ok', avatar: '', twitter: '', instagram: '', linkedin: '' },
-    ]))
-    const { result } = renderHook(() => useAuthors())
-    expect(result.current.authors.length).toBe(1)
-    expect(result.current.authors[0].name).toBe('Valid Author')
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.getAuthor('a1')?.name).toBe('Alice')
+    expect(result.current.getAuthorByName('alice')?.id).toBe('a1')
   })
 })

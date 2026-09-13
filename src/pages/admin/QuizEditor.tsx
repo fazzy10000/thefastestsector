@@ -9,8 +9,10 @@ import {
   ChevronUp,
   ChevronDown,
   GripVertical,
+  FolderOpen,
 } from 'lucide-react'
 import { useQuizzes } from '../../hooks/useQuizzes'
+import MediaPicker from '../../components/admin/MediaPicker'
 import { CATEGORY_LABELS } from '../../lib/types'
 import type { Category, Quiz, QuizQuestion } from '../../lib/types'
 
@@ -51,6 +53,7 @@ export default function QuizEditor() {
   const [createdAt, setCreatedAt] = useState(() => Date.now())
   const [saving, setSaving] = useState(false)
   const [loading, setLoading] = useState(!isNew)
+  const [libraryOpen, setLibraryOpen] = useState(false)
 
   useEffect(() => {
     if (!id) return
@@ -267,14 +270,27 @@ export default function QuizEditor() {
               </select>
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Featured image URL</label>
-              <input
-                type="url"
-                value={featuredImage}
-                onChange={(e) => setFeaturedImage(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
-                placeholder="https://…"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Featured image</label>
+              {featuredImage && (
+                <img src={featuredImage} alt="" className="w-full max-h-48 object-cover rounded-lg mb-2 bg-gray-100" />
+              )}
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={featuredImage}
+                  onChange={(e) => setFeaturedImage(e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/30 focus:border-primary outline-none"
+                  placeholder="https://…"
+                />
+                <button
+                  type="button"
+                  onClick={() => setLibraryOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  Library
+                </button>
+              </div>
             </div>
           </div>
         </section>
@@ -391,6 +407,14 @@ export default function QuizEditor() {
           ))}
         </section>
       </div>
+
+      <MediaPicker
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        title="Choose featured image"
+        imagesOnly
+        onSelect={(asset) => setFeaturedImage(asset.url)}
+      />
     </div>
   )
 }

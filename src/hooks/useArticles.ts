@@ -1,209 +1,113 @@
-import { useState, useEffect, useCallback } from 'react'
-import {
-  collection,
-  query,
-  orderBy,
-  where,
-  getDocs,
-  getDoc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
-  limit as fbLimit,
-  type QueryConstraint,
-} from 'firebase/firestore'
-import { db, isDemoMode } from '../lib/firebase'
-import { SAMPLE_ARTICLES } from '../lib/sampleData'
+import { useState, useCallback } from 'react'
+import { api } from '../lib/api'
 import type { Article, Category } from '../lib/types'
 
-const COLLECTION = 'articles'
-const LS_KEY = 'tfs_articles'
-const LS_VERSION_KEY = 'tfs_articles_v'
-const CURRENT_VERSION = '6'
-
-function readLocal(): Article[] {
-  try {
-    const raw = localStorage.getItem(LS_KEY)
-    if (!raw) return []
-    const data = JSON.parse(raw) as Article[]
-    return data
-      .filter((a) => a && a.id && a.title && typeof a.createdAt === 'number')
-      .map((a) => ({
-        ...a,
-        contentType: a.contentType || ((a.category as string) === 'opinion' ? 'opinion' : 'news'),
-        authorId: a.authorId || '',
-        scheduledAt: a.scheduledAt ?? null,
-        createdAt: a.createdAt || Date.now(),
-        updatedAt: a.updatedAt || Date.now(),
-      }))
-  } catch {
-    localStorage.removeItem(LS_KEY)
-    localStorage.removeItem(LS_VERSION_KEY)
-    return []
-  }
+export type ArticleListMeta = {
+  total: number
+  page: number
+  limit: number
+  counts?: { all: number; published: number; draft: number; scheduled: number }
 }
 
-function writeLocal(articles: Article[]) {
-  localStorage.setItem(LS_KEY, JSON.stringify(articles))
-}
-
-function initLocalIfEmpty() {
-  if (!localStorage.getItem(LS_KEY) || localStorage.getItem(LS_VERSION_KEY) !== CURRENT_VERSION) {
-    writeLocal(SAMPLE_ARTICLES)
-    localStorage.setItem(LS_VERSION_KEY, CURRENT_VERSION)
-  }
+export type FetchArticlesOpts = {
+  category?: Category
+  status?: 'draft' | 'published' | 'scheduled'
+  limit?: number
+  page?: number
+  featured?: boolean
+  authorId?: string
+  contentType?: string
+  q?: string
+  /** summary (default) omits HTML content; full includes it */
+  fields?: 'summary' | 'full'
 }
 
 export function useArticles() {
   const [articles, setArticles] = useState<Article[]>([])
+  const [meta, setMeta] = useState<ArticleListMeta>({ total: 0, page: 1, limit: 0 })
   const [loading, setLoading] = useState(true)
 
-  const fetchArticles = useCallback(async (opts?: {
-    category?: Category
-    status?: 'draft' | 'published' | 'scheduled'
-    limit?: number
-    featured?: boolean
-  }) => {
-    if (isDemoMode || !db) {
-      initLocalIfEmpty()
-      let data = readLocal()
-      const now = Date.now()
-      let dirty = false
-      data = data.map((a) => {
-        if (a.status === 'scheduled' && a.scheduledAt && a.scheduledAt <= now) {
-          dirty = true
-          return { ...a, status: 'published' as const, publishedAt: a.scheduledAt }
-        }
-        return a
-      })
-      if (dirty) writeLocal(data)
-      if (opts?.status === 'published') {
-        data = data.filter((a) => a.status === 'published')
-      } else if (opts?.status === 'draft') {
-        data = data.filter((a) => a.status === 'draft')
-      } else if (opts?.status) {
-        data = data.filter((a) => a.status === opts.status)
-      }
-      if (opts?.category) data = data.filter((a) => a.category === opts.category)
-      if (opts?.featured !== undefined) data = data.filter((a) => a.featured === opts.featured)
-      data.sort((a, b) => b.createdAt - a.createdAt)
-      if (opts?.limit) data = data.slice(0, opts.limit)
-      setArticles(data)
-      setLoading(false)
-      return data
-    }
-
+  const fetchArticles = useCallback(async (opts?: FetchArticlesOpts) => {
     setLoading(true)
     try {
-      const constraints: QueryConstraint[] = [orderBy('createdAt', 'desc')]
-      if (opts?.category) constraints.push(where('category', '==', opts.category))
-      if (opts?.limit) constraints.push(fbLimit(opts.limit))
-
-      const q = query(collection(db, COLLECTION), ...constraints)
-      const snapshot = await getDocs(q)
-      let data = snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Article))
-
-      if (opts?.status) data = data.filter((a) => a.status === opts.status)
-      if (opts?.featured !== undefined) data = data.filter((a) => a.featured === opts.featured)
-
-      setArticles(data)
-      return data
-    } catch (err) {
-      console.error('Error fetching articles from Firestore:', err)
-      initLocalIfEmpty()
-      let data = readLocal()
-      if (opts?.status) data = data.filter((a) => a.status === opts.status)
-      if (opts?.category) data = data.filter((a) => a.category === opts.category)
-      if (opts?.featured !== undefined) data = data.filter((a) => a.featured === opts.featured)
-      data.sort((a, b) => b.createdAt - a.createdAt)
-      if (opts?.limit) data = data.slice(0, opts.limit)
-      setArticles(data)
-      return data
+      const params = new URLSearchParams()
+      if (opts?.category) params.set('category', opts.category)
+      if (opts?.status) params.set('status', opts.status)
+      if (opts?.limit != null) params.set('limit', String(opts.limit))
+      if (opts?.page != null) params.set('page', String(opts.page))
+      if (opts?.featured !== undefined) params.set('featured', String(opts.featured))
+      if (opts?.authorId) params.set('authorId', opts.authorId)
+      if (opts?.contentType) params.set('contentType', opts.contentType)
+      if (opts?.q) params.set('q', opts.q)
+      if (opts?.fields) params.set('fields', opts.fields)
+      const qs = params.toString()
+      const data = await api<{
+        articles: Article[]
+        total?: number
+        page?: number
+        limit?: number
+        counts?: ArticleListMeta['counts']
+      }>(`/api/articles${qs ? `?${qs}` : ''}`)
+      setArticles(data.articles)
+      setMeta({
+        total: data.total ?? data.articles.length,
+        page: data.page ?? 1,
+        limit: data.limit ?? data.articles.length,
+        counts: data.counts,
+      })
+      return data.articles
     } finally {
       setLoading(false)
     }
   }, [])
 
   const getArticle = useCallback(async (id: string): Promise<Article | null> => {
-    if (isDemoMode || !db) {
-      initLocalIfEmpty()
-      return readLocal().find((a) => a.id === id) ?? null
-    }
     try {
-      const snap = await getDoc(doc(db, COLLECTION, id))
-      if (!snap.exists()) return null
-      return { id: snap.id, ...snap.data() } as Article
+      const data = await api<{ article: Article }>(`/api/articles/${id}`)
+      return data.article
     } catch {
       return null
     }
   }, [])
 
   const getArticleBySlug = useCallback(async (slug: string, _includeUnpublished = false): Promise<Article | null> => {
-    if (isDemoMode || !db) {
-      initLocalIfEmpty()
-      return readLocal().find((a) => a.slug === slug) ?? null
-    }
     try {
-      const q = query(collection(db, COLLECTION), where('slug', '==', slug))
-      const snapshot = await getDocs(q)
-      if (snapshot.empty) return null
-      const d = snapshot.docs[0]
-      return { id: d.id, ...d.data() } as Article
+      const data = await api<{ article: Article }>(`/api/articles/by-slug/${encodeURIComponent(slug)}`)
+      return data.article
     } catch {
-      initLocalIfEmpty()
-      return readLocal().find((a) => a.slug === slug) ?? null
+      return null
     }
   }, [])
 
   const createArticle = useCallback(async (data: Omit<Article, 'id'>) => {
-    if (isDemoMode || !db) {
-      initLocalIfEmpty()
-      const all = readLocal()
-      const newId = crypto.randomUUID()
-      all.unshift({ ...data, id: newId } as Article)
-      writeLocal(all)
-      return newId
-    }
-    const docRef = await addDoc(collection(db, COLLECTION), data)
-    return docRef.id
+    const res = await api<{ id: string }>('/api/articles', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+    return res.id
   }, [])
 
   const updateArticle = useCallback(async (id: string, data: Partial<Article>) => {
-    if (isDemoMode || !db) {
-      initLocalIfEmpty()
-      const all = readLocal()
-      const idx = all.findIndex((a) => a.id === id)
-      if (idx !== -1) {
-        all[idx] = { ...all[idx], ...data }
-        writeLocal(all)
-      }
-      return
-    }
-    await updateDoc(doc(db, COLLECTION, id), data)
+    await api(`/api/articles/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    })
   }, [])
 
-  const removeArticle = useCallback(async (id: string) => {
-    if (isDemoMode || !db) {
-      initLocalIfEmpty()
-      writeLocal(readLocal().filter((a) => a.id !== id))
-      return
-    }
-    await deleteDoc(doc(db, COLLECTION, id))
+  const deleteArticle = useCallback(async (id: string) => {
+    await api(`/api/articles/${id}`, { method: 'DELETE' })
   }, [])
-
-  useEffect(() => {
-    fetchArticles({ status: 'published' })
-  }, [fetchArticles])
 
   return {
     articles,
+    meta,
     loading,
     fetchArticles,
     getArticle,
     getArticleBySlug,
     createArticle,
     updateArticle,
-    removeArticle,
+    deleteArticle,
+    removeArticle: deleteArticle,
   }
 }

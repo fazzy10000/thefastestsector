@@ -154,7 +154,7 @@ export function getIndyCarStandings(): StandingsData {
   }
 }
 
-export function getFeederSeriesStandings(): StandingsData {
+export function getF2Standings(): StandingsData {
   return {
     season: '2026',
     round: 'R4',
@@ -170,7 +170,45 @@ export function getFeederSeriesStandings(): StandingsData {
       { position: 9, name: 'Amaury Cordeel', team: 'Hitech', nationality: 'Belgian', points: 18, wins: 0, code: 'COR' },
       { position: 10, name: 'Enzo Fittipaldi', team: 'Van Amersfoort', nationality: 'Brazilian', points: 12, wins: 0, code: 'FIT' },
     ],
-    constructors: [],
+    constructors: [
+      { position: 1, name: 'Prema', nationality: 'Italian', points: 133, wins: 2 },
+      { position: 2, name: 'Hitech', nationality: 'British', points: 90, wins: 1 },
+      { position: 3, name: 'AIX', nationality: 'German', points: 64, wins: 1 },
+      { position: 4, name: 'Campos', nationality: 'Spanish', points: 55, wins: 0 },
+      { position: 5, name: 'Rodin', nationality: 'New Zealander', points: 38, wins: 0 },
+    ],
+    fetchedAt: Date.now(),
+  }
+}
+
+/** @deprecated Use getF2Standings */
+export function getFeederSeriesStandings(): StandingsData {
+  return getF2Standings()
+}
+
+export function getF3Standings(): StandingsData {
+  return {
+    season: '2026',
+    round: 'R4',
+    drivers: [
+      { position: 1, name: 'Rafael Câmara', team: 'Trident', nationality: 'Brazilian', points: 78, wins: 2, code: 'CAM' },
+      { position: 2, name: 'Nikola Tsolov', team: 'ART', nationality: 'Bulgarian', points: 66, wins: 1, code: 'TSO' },
+      { position: 3, name: 'Tuukka Taponen', team: 'ART', nationality: 'Finnish', points: 58, wins: 1, code: 'TAP' },
+      { position: 4, name: 'Ugo Ugochukwu', team: 'Prema', nationality: 'American', points: 52, wins: 1, code: 'UGO' },
+      { position: 5, name: 'Theophile Nael', team: 'Van Amersfoort', nationality: 'French', points: 44, wins: 0, code: 'NAE' },
+      { position: 6, name: 'Noah Strømsted', team: 'Trident', nationality: 'Danish', points: 36, wins: 0, code: 'STR' },
+      { position: 7, name: 'James Wharton', team: 'ART', nationality: 'Australian', points: 28, wins: 0, code: 'WHA' },
+      { position: 8, name: 'Mari Boya', team: 'Campos', nationality: 'Spanish', points: 22, wins: 0, code: 'BOY' },
+      { position: 9, name: 'Callum Voisin', team: 'Rodin', nationality: 'British', points: 16, wins: 0, code: 'VOI' },
+      { position: 10, name: 'Laurens van Hoepen', team: 'ART', nationality: 'Dutch', points: 12, wins: 0, code: 'VAN' },
+    ],
+    constructors: [
+      { position: 1, name: 'ART', nationality: 'French', points: 164, wins: 2 },
+      { position: 2, name: 'Trident', nationality: 'Italian', points: 114, wins: 2 },
+      { position: 3, name: 'Prema', nationality: 'Italian', points: 52, wins: 1 },
+      { position: 4, name: 'Van Amersfoort', nationality: 'Dutch', points: 44, wins: 0 },
+      { position: 5, name: 'Campos', nationality: 'Spanish', points: 22, wins: 0 },
+    ],
     fetchedAt: Date.now(),
   }
 }

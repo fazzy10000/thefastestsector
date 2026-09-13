@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Search, Moon, Sun, Menu, X, User, ChevronDown } from 'lucide-react'
 import { useDarkMode } from '../hooks/useDarkMode'
+import { useSettings } from '../hooks/useSettings'
+import SocialIcons from './SocialIcons'
 
 interface NavLink {
   label: string
@@ -20,145 +22,41 @@ interface NavItem {
   columns?: NavColumn[]
 }
 
+function seriesNav(label: string, categoryHref: string): NavItem {
+  return {
+    label,
+    href: categoryHref,
+    columns: [
+      {
+        heading: 'Explore',
+        links: [
+          { label: 'News', href: categoryHref },
+          { label: 'Results', href: `${categoryHref}?tab=results` },
+          { label: 'Features', href: `${categoryHref}?tab=features` },
+        ],
+      },
+    ],
+  }
+}
+
 const NAV_CONFIG: NavItem[] = [
   { label: 'HOME', href: '/' },
-  {
-    label: 'F1',
-    href: '/category/formula-1',
-    columns: [
-      {
-        heading: 'News',
-        links: [
-          { label: 'Breaking News', href: '/category/formula-1' },
-          { label: 'Team News', href: '/category/formula-1' },
-          { label: 'Transfers', href: '/category/formula-1' },
-          { label: 'Technical', href: '/category/formula-1' },
-        ],
-      },
-      {
-        heading: 'Results',
-        links: [
-          { label: 'Race Results', href: '/standings' },
-          { label: 'Qualifying', href: '/standings' },
-          { label: 'Standings', href: '/standings' },
-          { label: 'Sprint Results', href: '/standings' },
-        ],
-      },
-      {
-        heading: 'Features',
-        links: [
-          { label: 'Analysis', href: '/category/formula-1' },
-          { label: 'Opinion', href: '/category/formula-1' },
-          { label: 'Team & Driver Features', href: '/category/formula-1' },
-          { label: 'Technical Deep Dives', href: '/category/formula-1' },
-        ],
-      },
-    ],
-  },
-  {
-    label: 'FEEDER SERIES',
-    href: '/category/feeder-series',
-    columns: [
-      {
-        heading: 'News',
-        links: [
-          { label: 'F2, F3, F4 & More', href: '/category/feeder-series' },
-          { label: 'Series Updates', href: '/category/feeder-series' },
-          { label: 'Team News', href: '/category/feeder-series' },
-        ],
-      },
-      {
-        heading: 'Results',
-        links: [
-          { label: 'F2 Results', href: '/standings' },
-          { label: 'F3 Results', href: '/standings' },
-          { label: 'Qualifying', href: '/standings' },
-          { label: 'Regional Series Results', href: '/standings' },
-        ],
-      },
-      {
-        heading: 'Features',
-        links: [
-          { label: 'Rising Stars', href: '/category/feeder-series' },
-          { label: 'Junior Driver Tracker', href: '/category/feeder-series' },
-          { label: 'Team Spotlights', href: '/category/feeder-series' },
-        ],
-      },
-    ],
-  },
-  {
-    label: 'INDYCAR',
-    href: '/category/indycar',
-    columns: [
-      {
-        heading: 'News',
-        links: [
-          { label: 'Series News', href: '/category/indycar' },
-          { label: 'Team News', href: '/category/indycar' },
-          { label: 'Driver Updates', href: '/category/indycar' },
-        ],
-      },
-      {
-        heading: 'Results',
-        links: [
-          { label: 'Race Results', href: '/standings' },
-          { label: 'Qualifying', href: '/standings' },
-          { label: 'Standings', href: '/standings' },
-        ],
-      },
-      {
-        heading: 'Features',
-        links: [
-          { label: 'Team & Driver Features', href: '/category/indycar' },
-          { label: 'Technical Analysis', href: '/category/indycar' },
-          { label: 'Team Spotlights', href: '/category/indycar' },
-        ],
-      },
-    ],
-  },
-  {
-    label: 'FORMULA E',
-    href: '/category/formula-e',
-    columns: [
-      {
-        heading: 'News',
-        links: [
-          { label: 'Series News', href: '/category/formula-e' },
-          { label: 'Team News', href: '/category/formula-e' },
-          { label: 'Tech & Innovation', href: '/category/formula-e' },
-        ],
-      },
-      {
-        heading: 'Results',
-        links: [
-          { label: 'Race Results', href: '/standings' },
-          { label: 'Qualifying', href: '/standings' },
-          { label: 'Standings', href: '/standings' },
-        ],
-      },
-      {
-        heading: 'Features',
-        links: [
-          { label: 'Technology Focus', href: '/category/formula-e' },
-          { label: 'Team & Driver Features', href: '/category/formula-e' },
-          { label: 'Sustainability', href: '/category/formula-e' },
-        ],
-      },
-    ],
-  },
+  seriesNav('F1', '/category/formula-1'),
+  seriesNav('FEEDER SERIES', '/category/feeder-series'),
+  seriesNav('F1 ACADEMY', '/category/f1-academy'),
+  seriesNav('INDYCAR', '/category/indycar'),
+  seriesNav('FORMULA E', '/category/formula-e'),
   {
     label: 'INTERACTIVE',
-    href: '/quizzes',
-    activePaths: ['/quizzes', '/quiz', '/interactive'],
+    href: '/interactive',
+    activePaths: ['/interactive', '/quizzes', '/quiz', '/games'],
     columns: [
       {
-        heading: 'Interactive',
+        heading: 'Play',
         links: [
           { label: 'Quizzes', href: '/quizzes' },
-          { label: 'Predictions', href: '/interactive/predictions' },
-          { label: 'Polls', href: '/interactive/polls' },
-          { label: 'Rankings', href: '/standings' },
-          { label: 'Challenges', href: '/interactive/challenges' },
+          { label: 'Games', href: '/games' },
+          { label: 'Fan Poll', href: '/interactive/polls' },
         ],
       },
     ],
@@ -170,13 +68,8 @@ const NAV_CONFIG: NavItem[] = [
       {
         heading: 'Newsletter',
         links: [
-          { label: 'Subscribe', href: '/sector-sweep' },
-          { label: 'Latest Edition', href: '/sector-sweep' },
-          { label: 'F1 Edition', href: '/sector-sweep' },
-          { label: 'Feeder Series Edition', href: '/sector-sweep' },
-          { label: 'IndyCar Edition', href: '/sector-sweep' },
-          { label: 'Formula E Edition', href: '/sector-sweep' },
-          { label: 'Archive', href: '/sector-sweep' },
+          { label: 'Subscribe', href: '/sector-sweep#subscribe' },
+          { label: 'Latest Edition', href: '/sector-sweep#latest' },
         ],
       },
     ],
@@ -184,14 +77,13 @@ const NAV_CONFIG: NavItem[] = [
   {
     label: 'ABOUT US',
     href: '/about',
-    activePaths: ['/about', '/contact'],
+    activePaths: ['/about', '/contact', '/join', '/privacy', '/terms'],
     columns: [
       {
         heading: 'About',
         links: [
-          { label: 'Our Story', href: '/about' },
-          { label: 'Meet The Team', href: '/about' },
-          { label: 'Join Us', href: '/about' },
+          { label: 'Meet the Team', href: '/about' },
+          { label: 'Join Us', href: '/join' },
           { label: 'Contact Us', href: '/contact' },
         ],
       },
@@ -209,6 +101,7 @@ function isNavActive(item: NavItem, pathname: string): boolean {
 
 export default function Navbar() {
   const { dark, toggle: toggleDark } = useDarkMode()
+  const { settings } = useSettings()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -238,37 +131,19 @@ export default function Navbar() {
       <div className="border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 py-2 grid grid-cols-3 items-center">
           {/* Left: social icons */}
-          <div className="flex items-center gap-3">
-            <a
-              href="https://x.com/thefastestsector"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="X / Twitter"
-              className="hover:text-primary transition-colors"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-            </a>
-            <a
-              href="https://instagram.com/thefastestsector"
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Instagram"
-              className="hover:text-primary transition-colors"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z" />
-              </svg>
-            </a>
-          </div>
+          <SocialIcons links={settings.socialLinks} />
 
           {/* Center: logo + wordmark */}
           <div className="flex justify-center">
             <Link to="/" className="flex items-center gap-2">
               <img src="/tfs-logo.png" alt="The Fastest Sector" className="w-8 h-8 rounded-full" />
-              <span className="font-black tracking-tight text-sm hidden sm:inline">
-                THE FASTEST <span className="text-primary">SECTOR</span>
+              <span className="hidden sm:block text-left">
+                <span className="block font-black tracking-tight text-sm leading-tight">
+                  THE FASTEST <span className="text-primary">SECTOR</span>
+                </span>
+                <span className="block text-[10px] text-white/50 leading-tight">
+                  {settings.siteTagline}
+                </span>
               </span>
             </Link>
           </div>

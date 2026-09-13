@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { auth } from '../lib/firebase'
+import { isAllowedMediaFile, isVideoFile } from '../lib/mediaFiles'
 
 const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME as string | undefined
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET as string | undefined
@@ -18,10 +18,15 @@ export function useImageUpload() {
   const [progress, setProgress] = useState(0)
 
   const uploadImage = useCallback(async (file: File): Promise<string> => {
+    if (!isAllowedMediaFile(file)) {
+      throw new Error('Please upload an image, GIF, or video (MP4, WebM, MOV).')
+    }
+
     setUploading(true)
     setProgress(0)
 
-    if (isCloudinaryConfigured) {
+    // Cloudinary image endpoint can't take video — use R2 for videos (and when Cloudinary isn't set)
+    if (isCloudinaryConfigured && !isVideoFile(file)) {
       try {
         const formData = new FormData()
         formData.append('file', file)
@@ -39,36 +44,22 @@ export function useImageUpload() {
       }
     }
 
-    const idToken = await auth?.currentUser?.getIdToken().catch(() => null)
-    if (idToken) {
-      try {
-        const formData = new FormData()
-        formData.append('file', file)
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${idToken}` },
-          body: formData,
-        })
-        if (!res.ok) throw new Error('R2 upload failed')
-        const data = await res.json()
-        setProgress(100)
-        return data.url as string
-      } catch {
-        // fall through to local data-URL fallback below
-      } finally {
-        setUploading(false)
-      }
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      })
+      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string }
+      if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`)
+      if (!data.url) throw new Error('Upload succeeded but returned no URL.')
+      setProgress(100)
+      return data.url
+    } finally {
+      setUploading(false)
     }
-
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => {
-        setProgress(100)
-        setUploading(false)
-        resolve(reader.result as string)
-      }
-      reader.readAsDataURL(file)
-    })
   }, [])
 
   return { uploadImage, uploading, progress, isCloudinaryConfigured }

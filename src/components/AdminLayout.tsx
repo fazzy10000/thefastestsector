@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useDarkMode } from '../hooks/useDarkMode'
+import AdminTour from './admin/AdminTour'
 import {
   LayoutDashboard,
   PlusCircle,
@@ -15,24 +17,50 @@ import {
   Upload,
   Search,
   Trophy,
+  Mail,
+  BarChart3,
+  Megaphone,
+  Moon,
+  Sun,
+  Map,
+  HelpCircle,
 } from 'lucide-react'
 
-const NAV = [
+type NavItem = {
+  label: string
+  path: string
+  icon: typeof LayoutDashboard
+  requiredAction?: 'manage_ads' | 'manage_newsletter' | 'manage_seo' | 'manage_settings' | 'manage_users'
+  tour?: string
+}
+
+const NAV: NavItem[] = [
   { label: 'Dashboard', path: '/admin', icon: LayoutDashboard },
-  { label: 'New Article', path: '/admin/new', icon: PlusCircle },
+  { label: 'Traffic & Insights', path: '/admin/stats', icon: BarChart3 },
+  { label: 'Ads', path: '/admin/ads', icon: Megaphone, requiredAction: 'manage_ads' as const },
+  { label: 'New Article', path: '/admin/new', icon: PlusCircle, tour: 'nav-new-article' },
+  { label: 'Newsletters', path: '/admin/newsletter', icon: Mail, requiredAction: 'manage_newsletter' as const },
   { label: 'Quizzes', path: '/admin/quizzes', icon: Trophy },
   { label: 'Authors', path: '/admin/authors', icon: Users },
-  { label: 'Image Tools', path: '/admin/image-tools', icon: ImageIcon },
-  { label: 'SEO', path: '/admin/seo', icon: Search, requiredAction: 'manage_seo' as const },
+  { label: 'Media', path: '/admin/media', icon: ImageIcon },
+  { label: 'SEO', path: '/admin/seo', icon: Search, requiredAction: 'manage_seo' as const, tour: 'nav-seo' },
+  { label: 'Sitemap', path: '/admin/sitemap', icon: Map, requiredAction: 'manage_seo' as const },
   { label: 'Settings', path: '/admin/settings', icon: Settings, requiredAction: 'manage_settings' as const },
   { label: 'Team', path: '/admin/team', icon: Shield, requiredAction: 'manage_users' as const },
   { label: 'Import', path: '/admin/import', icon: Upload, requiredAction: 'manage_settings' as const },
 ]
 
 export default function AdminLayout() {
-  const { signOut, can, role, isDemo } = useAuth()
+  const { signOut, can, role } = useAuth()
+  const { dark, toggle: toggleDark } = useDarkMode()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [tourSignal, setTourSignal] = useState(0)
+
+  const startTour = () => {
+    setSidebarOpen(false)
+    setTourSignal((n) => n + 1)
+  }
 
   const sidebar = (
     <>
@@ -49,22 +77,26 @@ export default function AdminLayout() {
         </button>
       </div>
       <p className="px-5 pt-2 text-xs text-white/40 capitalize">{role}</p>
-      {isDemo && (
-        <p className="mx-4 mt-2 px-2.5 py-1.5 rounded-md bg-amber-500/15 border border-amber-400/30 text-[11px] text-amber-200 leading-snug">
-          Demo mode — saves stay in this browser only
-        </p>
-      )}
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-y-1 overflow-y-auto" data-tour="sidebar-nav">
         {NAV.map((item) => {
           if (item.requiredAction && !can(item.requiredAction)) return null
           const isActive =
             item.path === '/admin/quizzes'
               ? location.pathname.startsWith('/admin/quiz')
-              : location.pathname === item.path
+              : item.path === '/admin/newsletter'
+                ? location.pathname.startsWith('/admin/newsletter')
+                : item.path === '/admin/media'
+                  ? location.pathname.startsWith('/admin/media') || location.pathname.startsWith('/admin/image-tools')
+                  : item.path === '/admin/stats'
+                    ? location.pathname.startsWith('/admin/stats')
+                    : item.path === '/admin/ads'
+                      ? location.pathname.startsWith('/admin/ads')
+                      : location.pathname === item.path
           return (
             <Link
               key={item.path}
               to={item.path}
+              data-tour={item.tour}
               onClick={() => setSidebarOpen(false)}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                 isActive
@@ -79,6 +111,21 @@ export default function AdminLayout() {
         })}
       </nav>
       <div className="p-4 border-t border-white/10 space-y-1">
+        <button
+          onClick={startTour}
+          data-tour="tour-button"
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+        >
+          <HelpCircle className="w-4.5 h-4.5" />
+          Take the tour
+        </button>
+        <button
+          onClick={toggleDark}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-white/70 hover:bg-white/10 hover:text-white transition-colors"
+        >
+          {dark ? <Sun className="w-4.5 h-4.5" /> : <Moon className="w-4.5 h-4.5" />}
+          {dark ? 'Light mode' : 'Dark mode'}
+        </button>
         <Link
           to="/"
           onClick={() => setSidebarOpen(false)}
@@ -99,19 +146,35 @@ export default function AdminLayout() {
   )
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="admin-shell min-h-screen flex bg-gray-50 dark:bg-surface-darker">
       {/* Mobile top bar */}
       <div className="fixed top-0 left-0 right-0 z-40 md:hidden bg-surface-dark flex items-center justify-between px-4 py-3">
         <Link to="/admin" className="flex items-center gap-2 text-lg font-black text-white">
           <img src="/tfs-logo.png" alt="TFS" className="w-6 h-6 rounded-full" />
           <span><span className="text-primary">TFS</span> Admin</span>
         </Link>
-        <button
-          onClick={() => setSidebarOpen(true)}
-          className="p-2 text-white/70 hover:text-white"
-        >
-          <Menu className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={startTour}
+            className="p-2 text-white/70 hover:text-white"
+            aria-label="Take the tour"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </button>
+          <button
+            onClick={toggleDark}
+            className="p-2 text-white/70 hover:text-white"
+            aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {dark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 text-white/70 hover:text-white"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Mobile overlay */}
@@ -132,10 +195,11 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 overflow-auto w-full">
+      <div className="admin-content flex-1 overflow-auto w-full">
         <div className="p-4 pt-16 md:p-8 md:pt-8">
           <Outlet />
         </div>
+        <AdminTour startSignal={tourSignal} />
       </div>
     </div>
   )

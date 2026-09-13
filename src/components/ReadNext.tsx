@@ -30,8 +30,12 @@ function scoreRelevance(candidate: Article, current: Article): number {
 }
 
 export default function ReadNext({ current }: Props) {
-  const { articles } = useArticles()
+  const { articles, fetchArticles } = useArticles()
   const [recommendations, setRecommendations] = useState<Article[]>([])
+
+  useEffect(() => {
+    void fetchArticles({ status: 'published', category: current.category, limit: 24 })
+  }, [fetchArticles, current.category])
 
   useEffect(() => {
     const published = articles.filter(

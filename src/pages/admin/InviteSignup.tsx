@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { auth, isFirebaseConfigured } from '../../lib/firebase'
+import { api } from '../../lib/api'
 import { useUsers } from '../../hooks/useUsers'
 import type { Invite } from '../../lib/types'
 import { UserPlus, Loader2, AlertTriangle, CheckCircle } from 'lucide-react'
@@ -10,7 +9,7 @@ export default function InviteSignup() {
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const token = searchParams.get('token') || ''
-  const { getInviteByToken, markInviteUsed, ensureUser } = useUsers()
+  const { getInviteByToken } = useUsers()
 
   const [invite, setInvite] = useState<Invite | null>(null)
   const [checking, setChecking] = useState(true)
@@ -55,34 +54,19 @@ export default function InviteSignup() {
 
     setCreating(true)
     try {
-      if (isFirebaseConfigured && auth) {
-        const cred = await createUserWithEmailAndPassword(auth, invite.email, password)
-        const { setDoc, doc } = await import('firebase/firestore')
-        const { db } = await import('../../lib/firebase')
-        if (db) {
-          await setDoc(doc(db, 'users', cred.user.uid), {
-            email: invite.email,
-            displayName: displayName.trim() || invite.email.split('@')[0],
-            role: invite.role,
-            createdAt: Date.now(),
-          })
-        }
-      } else {
-        await ensureUser(crypto.randomUUID(), invite.email, displayName.trim())
-      }
-
-      await markInviteUsed(token)
+      await api('/api/auth/signup', {
+        method: 'POST',
+        body: JSON.stringify({
+          inviteId: token,
+          email: invite.email,
+          password,
+          displayName: displayName.trim() || invite.email.split('@')[0],
+        }),
+      })
       setSuccess(true)
       setTimeout(() => navigate('/admin', { replace: true }), 2000)
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to create account'
-      if (msg.includes('email-already-in-use')) {
-        setError('An account with this email already exists. Try signing in instead.')
-      } else if (msg.includes('weak-password')) {
-        setError('Password is too weak — use at least 6 characters')
-      } else {
-        setError(msg)
-      }
+      setError(err instanceof Error ? err.message : 'Failed to create account')
     } finally {
       setCreating(false)
     }

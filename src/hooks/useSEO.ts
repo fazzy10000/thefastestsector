@@ -1,151 +1,59 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { collection, doc, getDoc, getDocs, setDoc } from 'firebase/firestore'
-import { db, isDemoMode } from '../lib/firebase'
-import type { ArticleSEOOverride, GlobalSEOSettings } from '../lib/types'
-import { DEFAULT_SEO_SETTINGS } from '../lib/types'
-
-const SETTINGS_COLLECTION = 'seo_settings'
-const SETTINGS_DOC_ID = 'global'
-const OVERRIDES_COLLECTION = 'seo_overrides'
-const LS_SETTINGS = 'tfs_seo_settings'
-const LS_OVERRIDES = 'tfs_seo_overrides'
-
-function emptyOverride(): ArticleSEOOverride {
-  return { metaTitle: '', metaDescription: '', focusKeyphrase: '', noIndex: false }
-}
-
-function mergeSettings(raw: Partial<GlobalSEOSettings> | null): GlobalSEOSettings {
-  if (!raw) return { ...DEFAULT_SEO_SETTINGS }
-  return {
-    ...DEFAULT_SEO_SETTINGS,
-    ...raw,
-    robotsDirectives: {
-      ...DEFAULT_SEO_SETTINGS.robotsDirectives,
-      ...raw.robotsDirectives,
-    },
-  }
-}
-
-function readLocalSettings(): GlobalSEOSettings {
-  try {
-    const raw = localStorage.getItem(LS_SETTINGS)
-    if (!raw) return { ...DEFAULT_SEO_SETTINGS }
-    return mergeSettings(JSON.parse(raw) as Partial<GlobalSEOSettings>)
-  } catch {
-    return { ...DEFAULT_SEO_SETTINGS }
-  }
-}
-
-function readLocalOverrides(): Record<string, ArticleSEOOverride> {
-  try {
-    const raw = localStorage.getItem(LS_OVERRIDES)
-    if (!raw) return {}
-    const parsed = JSON.parse(raw) as Record<string, Partial<ArticleSEOOverride>>
-    const out: Record<string, ArticleSEOOverride> = {}
-    for (const [id, v] of Object.entries(parsed)) {
-      out[id] = { ...emptyOverride(), ...v }
-    }
-    return out
-  } catch {
-    return {}
-  }
-}
-
-function writeLocalOverrides(map: Record<string, ArticleSEOOverride>) {
-  localStorage.setItem(LS_OVERRIDES, JSON.stringify(map))
-}
+import { useState, useEffect, useCallback } from 'react'
+import { api } from '../lib/api'
+import {
+  DEFAULT_SEO_SETTINGS,
+  type ArticleSEOOverride,
+  type GlobalSEOSettings,
+} from '../lib/types'
 
 export function useSEO() {
   const [settings, setSettings] = useState<GlobalSEOSettings>(DEFAULT_SEO_SETTINGS)
   const [overrides, setOverrides] = useState<Record<string, ArticleSEOOverride>>({})
-  const overridesRef = useRef(overrides)
-  overridesRef.current = overrides
   const [loading, setLoading] = useState(true)
 
-  const fetchSettings = useCallback(async () => {
-    if (isDemoMode || !db) {
-      setSettings(readLocalSettings())
-      return
-    }
+  const fetchAll = useCallback(async () => {
+    setLoading(true)
     try {
-      const snap = await getDoc(doc(db, SETTINGS_COLLECTION, SETTINGS_DOC_ID))
-      if (snap.exists()) {
-        setSettings(mergeSettings(snap.data() as Partial<GlobalSEOSettings>))
-      } else {
-        setSettings({ ...DEFAULT_SEO_SETTINGS })
-      }
-    } catch (err) {
-      console.error('useSEO fetchSettings:', err)
-      setSettings(readLocalSettings())
+      const [seo, over] = await Promise.all([
+        api<{ settings: GlobalSEOSettings }>('/api/seo/settings'),
+        api<{ overrides: Record<string, ArticleSEOOverride> }>('/api/seo/overrides'),
+      ])
+      setSettings(seo.settings || DEFAULT_SEO_SETTINGS)
+      setOverrides(over.overrides || {})
+    } catch {
+      setSettings(DEFAULT_SEO_SETTINGS)
+      setOverrides({})
+    } finally {
+      setLoading(false)
     }
-  }, [])
-
-  const saveSettings = useCallback(async (data: GlobalSEOSettings) => {
-    const merged = mergeSettings(data)
-    if (isDemoMode || !db) {
-      localStorage.setItem(LS_SETTINGS, JSON.stringify(merged))
-      setSettings(merged)
-      return
-    }
-    await setDoc(doc(db, SETTINGS_COLLECTION, SETTINGS_DOC_ID), merged)
-    setSettings(merged)
-  }, [])
-
-  const fetchOverrides = useCallback(async () => {
-    if (isDemoMode || !db) {
-      const local = readLocalOverrides()
-      overridesRef.current = local
-      setOverrides(local)
-      return
-    }
-    try {
-      const snap = await getDocs(collection(db, OVERRIDES_COLLECTION))
-      const map: Record<string, ArticleSEOOverride> = {}
-      snap.forEach((d) => {
-        map[d.id] = { ...emptyOverride(), ...(d.data() as Partial<ArticleSEOOverride>) }
-      })
-      overridesRef.current = map
-      setOverrides(map)
-    } catch (err) {
-      console.error('useSEO fetchOverrides:', err)
-      const fallback = readLocalOverrides()
-      overridesRef.current = fallback
-      setOverrides(fallback)
-    }
-  }, [])
-
-  const saveOverride = useCallback(async (articleId: string, data: Partial<ArticleSEOOverride>) => {
-    const prev = overridesRef.current[articleId] ?? emptyOverride()
-    const merged: ArticleSEOOverride = { ...prev, ...data }
-    const next = { ...overridesRef.current, [articleId]: merged }
-    overridesRef.current = next
-    setOverrides(next)
-    if (isDemoMode || !db) {
-      writeLocalOverrides(next)
-      return
-    }
-    await setDoc(doc(db, OVERRIDES_COLLECTION, articleId), merged)
   }, [])
 
   useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      setLoading(true)
-      await Promise.all([fetchSettings(), fetchOverrides()])
-      if (!cancelled) setLoading(false)
-    })()
-    return () => {
-      cancelled = true
-    }
-  }, [fetchSettings, fetchOverrides])
+    void fetchAll()
+  }, [fetchAll])
+
+  const saveSettings = useCallback(async (next: GlobalSEOSettings) => {
+    await api('/api/seo/settings', {
+      method: 'PUT',
+      body: JSON.stringify(next),
+    })
+    setSettings(next)
+  }, [])
+
+  const saveOverride = useCallback(async (articleId: string, override: ArticleSEOOverride) => {
+    await api(`/api/seo/overrides/${articleId}`, {
+      method: 'PUT',
+      body: JSON.stringify(override),
+    })
+    setOverrides((prev) => ({ ...prev, [articleId]: override }))
+  }, [])
 
   return {
     settings,
-    overrides,
     loading,
-    fetchSettings,
+    overrides,
     saveSettings,
-    fetchOverrides,
     saveOverride,
+    fetchAll,
   }
 }

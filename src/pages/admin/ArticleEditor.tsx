@@ -5,15 +5,19 @@ import StarterKit from '@tiptap/starter-kit'
 import ImageExtension from '@tiptap/extension-image'
 import LinkExtension from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
+import { VideoExtension } from '../../components/admin/VideoExtension'
 import { useArticles } from '../../hooks/useArticles'
 import { useAuthors } from '../../hooks/useAuthors'
 import { useAuth } from '../../hooks/useAuth'
 import { useImageUpload } from '../../hooks/useImageUpload'
 import { useVersions } from '../../hooks/useVersions'
+import { isVideoFile, isVideoUrl, MEDIA_ACCEPT } from '../../lib/mediaFiles'
 import { CATEGORY_LABELS, CONTENT_TYPE_LABELS } from '../../lib/types'
 import type { Article, Category, ContentType } from '../../lib/types'
 import SEOPanel from '../../components/admin/SEOPanel'
 import ImageTools from '../../components/admin/ImageTools'
+import MediaPicker from '../../components/admin/MediaPicker'
+import { useMediaLibrary } from '../../hooks/useMediaLibrary'
 import {
   Save,
   Eye,
@@ -35,6 +39,7 @@ import {
   CalendarClock,
   RotateCcw,
   ExternalLink,
+  FolderOpen,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -52,8 +57,9 @@ export default function ArticleEditor() {
   const navigate = useNavigate()
   const { getArticle, createArticle, updateArticle } = useArticles()
   const { authors } = useAuthors()
-  const { user } = useAuth()
+  const { user, uid } = useAuth()
   const { uploadImage, uploading } = useImageUpload()
+  const { createAsset } = useMediaLibrary({ autoFetch: false })
   const { versions, fetchVersions, saveVersion } = useVersions(id)
   const isEditing = Boolean(id)
 
@@ -65,6 +71,8 @@ export default function ArticleEditor() {
   const [tags, setTags] = useState('')
   const [author, setAuthor] = useState('')
   const [authorId, setAuthorId] = useState('')
+  const [editorName, setEditorName] = useState('')
+  const [editorId, setEditorId] = useState('')
   const [featuredImage, setFeaturedImage] = useState('')
   const [status, setStatus] = useState<'draft' | 'published' | 'scheduled'>('draft')
   const [featured, setFeatured] = useState(false)
@@ -78,11 +86,13 @@ export default function ArticleEditor() {
   const [showImageTools, setShowImageTools] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [contentHtml, setContentHtml] = useState('')
+  const [mediaPickerFor, setMediaPickerFor] = useState<'featured' | 'content' | null>(null)
 
   const editor = useEditor({
     extensions: [
       StarterKit,
       ImageExtension,
+      VideoExtension,
       LinkExtension.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder: 'Start writing your article...' }),
     ],
@@ -102,6 +112,8 @@ export default function ArticleEditor() {
           setTags(article.tags.join(', '))
           setAuthor(article.author)
           setAuthorId(article.authorId || '')
+          setEditorName(article.editor || '')
+          setEditorId(article.editorId || '')
           setFeaturedImage(article.featuredImage)
           setStatus(article.status)
           setFeatured(article.featured)
@@ -124,13 +136,29 @@ export default function ArticleEditor() {
   }, [title, isEditing])
 
   const handleImageUpload = useCallback(async (file: File, target: 'featured' | 'content') => {
+    if (target === 'featured' && isVideoFile(file)) {
+      setSaveError('Featured media must be an image or GIF, not a video.')
+      return
+    }
     const url = await uploadImage(file)
+    const name = file.name.replace(/\.[^.]+$/, '')
+    void createAsset({
+      url,
+      name,
+      alt: name,
+      tags: isVideoUrl(url) ? ['video'] : [],
+      createdBy: uid || '',
+    })
     if (target === 'featured') {
       setFeaturedImage(url)
     } else if (editor) {
-      editor.chain().focus().setImage({ src: url }).run()
+      if (isVideoUrl(url)) {
+        editor.chain().focus().setVideo({ src: url }).run()
+      } else {
+        editor.chain().focus().setImage({ src: url, alt: name }).run()
+      }
     }
-  }, [uploadImage, editor])
+  }, [uploadImage, editor, createAsset, uid])
 
   const handleSave = async (saveStatus?: 'draft' | 'published' | 'scheduled') => {
     if (!editor) return
@@ -170,6 +198,8 @@ export default function ArticleEditor() {
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       author: author.trim(),
       authorId,
+      editor: editorName.trim(),
+      editorId,
       status: finalStatus,
       featured,
       scheduledAt: scheduledTimestamp,
@@ -227,7 +257,7 @@ export default function ArticleEditor() {
             {isEditing ? 'Edit Article' : 'New Article'}
           </h1>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2" data-tour="editor-actions">
           {isEditing && (
             <button
               onClick={handlePreview}
@@ -281,6 +311,7 @@ export default function ArticleEditor() {
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
+            data-tour="editor-title"
             placeholder="Article title"
             className="w-full text-2xl sm:text-3xl font-bold text-gray-900 placeholder:text-gray-300 focus:outline-none bg-transparent"
           />
@@ -307,7 +338,7 @@ export default function ArticleEditor() {
 
           {/* Editor toolbar */}
           {editor && (
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden" data-tour="editor-body">
               <div className="flex flex-wrap items-center gap-0.5 px-3 py-2 border-b border-gray-100 bg-gray-50">
                 <ToolbarBtn
                   icon={<Bold className="w-4 h-4" />}
@@ -357,12 +388,12 @@ export default function ArticleEditor() {
                 />
                 <label
                   className="p-1.5 rounded transition-colors cursor-pointer text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                  title="Insert image"
+                  title="Upload image, GIF, or video"
                 >
                   <Image className="w-4 h-4" />
                   <input
                     type="file"
-                    accept="image/*"
+                    accept={MEDIA_ACCEPT}
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0]
@@ -371,6 +402,12 @@ export default function ArticleEditor() {
                     }}
                   />
                 </label>
+                <ToolbarBtn
+                  icon={<FolderOpen className="w-4 h-4" />}
+                  active={false}
+                  title="Choose from library"
+                  onClick={() => setMediaPickerFor('content')}
+                />
                 <div className="w-px h-5 bg-gray-200 mx-1" />
                 <ToolbarBtn
                   icon={<Undo className="w-4 h-4" />}
@@ -389,6 +426,7 @@ export default function ArticleEditor() {
           )}
 
           {/* SEO Panel */}
+          <div data-tour="editor-seo-panel">
           <SEOPanel
             title={title}
             slug={slug}
@@ -402,6 +440,7 @@ export default function ArticleEditor() {
             metaDescription={metaDescription}
             onMetaDescriptionChange={setMetaDescription}
           />
+          </div>
         </div>
 
         {/* History panel */}
@@ -452,7 +491,7 @@ export default function ArticleEditor() {
         {/* Sidebar */}
         <div className="space-y-5">
           {/* Featured Image */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-gray-200 p-5" data-tour="editor-featured-image">
             <h3 className="font-semibold text-gray-900 text-sm mb-3">Featured Image</h3>
             {featuredImage ? (
               <div className="relative group">
@@ -488,6 +527,14 @@ export default function ArticleEditor() {
                 />
               </label>
             )}
+            <button
+              type="button"
+              onClick={() => setMediaPickerFor('featured')}
+              className="w-full mt-3 inline-flex items-center justify-center gap-2 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+              Choose from library
+            </button>
             <input
               type="text"
               value={featuredImage}
@@ -498,7 +545,7 @@ export default function ArticleEditor() {
           </div>
 
           {/* Category */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-gray-200 p-5" data-tour="editor-category">
             <h3 className="font-semibold text-gray-900 text-sm mb-3">Category</h3>
             <select
               value={category}
@@ -592,8 +639,29 @@ export default function ArticleEditor() {
             )}
           </div>
 
+          {/* Editor */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5" data-tour="editor-edited-by">
+            <h3 className="font-semibold text-gray-900 text-sm mb-3">Edited by</h3>
+            <select
+              value={editorId}
+              onChange={(e) => {
+                const sel = authors.find((a) => a.id === e.target.value)
+                setEditorId(e.target.value)
+                if (sel) setEditorName(sel.name)
+                else if (!e.target.value) setEditorName('')
+              }}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-primary"
+            >
+              <option value="">None / same as author</option>
+              {authors.map((a) => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">Shown as a smaller credit under Written by</p>
+          </div>
+
           {/* Tags */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
+          <div className="bg-white rounded-xl border border-gray-200 p-5" data-tour="editor-tags">
             <h3 className="font-semibold text-gray-900 text-sm mb-3">Tags</h3>
             <input
               type="text"
@@ -638,6 +706,13 @@ export default function ArticleEditor() {
               initialSrc={featuredImage}
               onApply={(dataUrl) => {
                 setFeaturedImage(dataUrl)
+                void createAsset({
+                  url: dataUrl,
+                  name: title.trim() || 'Featured image',
+                  alt: title.trim(),
+                  tags: ['featured'],
+                  createdBy: uid || '',
+                })
                 setShowImageTools(false)
               }}
               compact
@@ -645,6 +720,28 @@ export default function ArticleEditor() {
           </div>
         </div>
       )}
+
+      <MediaPicker
+        open={mediaPickerFor !== null}
+        onClose={() => setMediaPickerFor(null)}
+        title={mediaPickerFor === 'featured' ? 'Choose featured image' : 'Insert image or video'}
+        imagesOnly={mediaPickerFor === 'featured'}
+        onSelect={(asset) => {
+          if (mediaPickerFor === 'featured') {
+            if (isVideoUrl(asset.url)) {
+              setSaveError('Featured media must be an image or GIF, not a video.')
+              return
+            }
+            setFeaturedImage(asset.url)
+          } else if (editor) {
+            if (isVideoUrl(asset.url)) {
+              editor.chain().focus().setVideo({ src: asset.url }).run()
+            } else {
+              editor.chain().focus().setImage({ src: asset.url, alt: asset.alt || asset.name }).run()
+            }
+          }
+        }}
+      />
     </div>
   )
 }
@@ -653,14 +750,17 @@ function ToolbarBtn({
   icon,
   active,
   onClick,
+  title,
 }: {
   icon: React.ReactNode
   active: boolean
   onClick: () => void
+  title?: string
 }) {
   return (
     <button
       type="button"
+      title={title}
       onClick={onClick}
       className={`p-1.5 rounded transition-colors ${
         active ? 'bg-primary/10 text-primary' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'

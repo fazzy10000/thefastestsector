@@ -1,3 +1,5 @@
+import { DEFAULT_PAGE_CONTENT } from './siteContentDefaults'
+
 export type ContentType = 'news' | 'results' | 'opinion'
 
 export const CONTENT_TYPE_LABELS: Record<ContentType, string> = {
@@ -28,6 +30,8 @@ export interface Article {
   tags: string[]
   author: string
   authorId: string
+  editor?: string
+  editorId?: string
   status: 'draft' | 'published' | 'scheduled'
   featured: boolean
   scheduledAt: number | null
@@ -132,6 +136,43 @@ export const CATEGORY_COLORS: Record<Category, string> = {
   'other': 'bg-badge-news',
 }
 
+export interface PolicySection {
+  heading: string
+  paragraphs: string[]
+  bullets: string[]
+  afterBullets?: string[]
+}
+
+export interface SitePageContent {
+  title: string
+  seoDescription: string
+  lastUpdated: string
+  sections: PolicySection[]
+  /** Legacy HTML field — migrated to sections on load. */
+  content?: string
+}
+
+export interface JoinPageSettings {
+  title: string
+  seoDescription: string
+  intro: string
+  benefitsHeading: string
+  benefits: string[]
+}
+
+export interface FooterValueProp {
+  title: string
+  desc: string
+}
+
+export interface FooterSettings {
+  newsletterLabel: string
+  newsletterHeadline: string
+  newsletterBody: string
+  valueProps: FooterValueProp[]
+  legalDisclaimer: string
+}
+
 export interface SiteSettings {
   ourStory: string
   socialLinks: {
@@ -144,21 +185,30 @@ export interface SiteSettings {
   }
   siteName: string
   siteTagline: string
+  contactEmail: string
+  legalLocation: string
+  privacyPolicy: SitePageContent
+  editorialPolicy: SitePageContent
+  correctionsPolicy: SitePageContent
+  terms: SitePageContent
+  joinPage: JoinPageSettings
+  footer: FooterSettings
 }
 
 export const DEFAULT_SETTINGS: SiteSettings = {
   ourStory:
     'The Fastest Sector was created to give a platform to motorsport fans to share their love for motorsport, as well as their creativity and writing skills. What started as a small team of five in 2021, and has seen members come and go, has now expanded to a large team, always eager to share content with you.',
   socialLinks: {
-    twitter: 'https://x.com',
-    instagram: 'https://instagram.com',
-    linkedin: 'https://linkedin.com',
-    tiktok: 'https://tiktok.com',
-    discord: 'https://discord.gg',
-    email: 'mailto:contact@thefastestsector.com',
+    twitter: 'https://x.com/_TFSofficial',
+    instagram: 'https://www.instagram.com/thefastestsector/',
+    linkedin: 'https://www.linkedin.com/company/the-fastest-sector',
+    tiktok: 'https://www.tiktok.com/@thefastestsector',
+    discord: 'https://discord.com/invite/mxn8S2rgKC',
+    email: 'mailto:thefastestsector@gmail.com',
   },
   siteName: 'The Fastest Sector',
   siteTagline: 'Home of quick, quirky and reliable motorsport content.',
+  ...DEFAULT_PAGE_CONTENT,
 }
 
 export interface RaceEvent {
@@ -194,4 +244,48 @@ export interface Quiz {
   status: 'draft' | 'published'
   createdAt: number
   updatedAt: number
+}
+
+export type NewsletterEdition = 'all' | 'f1' | 'feeder-series' | 'indycar' | 'formula-e'
+
+export const NEWSLETTER_EDITION_LABELS: Record<NewsletterEdition, string> = {
+  all: 'All subscribers',
+  f1: 'F1 Edition',
+  'feeder-series': 'Feeder Series Edition',
+  indycar: 'IndyCar Edition',
+  'formula-e': 'Formula E Edition',
+}
+
+export interface Newsletter {
+  id: string
+  subject: string
+  previewText: string
+  content: string
+  edition: NewsletterEdition
+  status: 'draft' | 'sent'
+  recipientCount: number
+  createdAt: number
+  updatedAt: number
+  sentAt: number | null
+  createdBy: string
+}
+
+export interface NewsletterSubscriber {
+  id: string
+  email: string
+  source: string
+  edition: string
+  status: string
+  createdAt: number
+}
+
+export interface MediaAsset {
+  id: string
+  url: string
+  name: string
+  alt: string
+  tags: string[]
+  createdAt: number
+  updatedAt: number
+  createdBy: string
 }

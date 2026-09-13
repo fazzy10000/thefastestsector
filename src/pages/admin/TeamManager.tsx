@@ -47,7 +47,7 @@ const ROLE_CONFIG: Record<UserRole, { label: string; color: string; icon: typeof
 
 export default function TeamManager() {
   const { users, invites, loading, createInvite, revokeInvite, updateRole, removeUser } = useUsers()
-  const { can, uid, user } = useAuth()
+  const { can, uid } = useAuth()
   const [editingUid, setEditingUid] = useState<string | null>(null)
   const [showInvite, setShowInvite] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
@@ -78,10 +78,9 @@ export default function TeamManager() {
   const handleCreateInvite = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!inviteEmail.trim()) return
-    const createdBy = user?.email || 'admin'
-    const invite = await createInvite(inviteEmail.trim(), inviteRole, createdBy)
+    const inviteId = await createInvite(inviteEmail.trim(), inviteRole)
     const base = window.location.origin
-    setInviteLink(`${base}/admin/signup?token=${invite.id}`)
+    setInviteLink(`${base}/admin/signup?token=${inviteId}`)
     setInviteEmail('')
   }
 

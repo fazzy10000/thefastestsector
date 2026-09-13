@@ -22,6 +22,8 @@ const ALPHA3_TO_FLAG: Record<string, string> = {
   QAT: '🇶🇦',
   SAU: '🇸🇦',
   SGP: '🇸🇬',
+  MYS: '🇲🇾',
+  OTH: '🏁',
   USA: '🇺🇸',
 }
 

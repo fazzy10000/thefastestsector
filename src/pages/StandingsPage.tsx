@@ -5,18 +5,20 @@ import {
   fetchF1Standings,
   getFormulaEStandings,
   getIndyCarStandings,
-  getFeederSeriesStandings,
+  getF2Standings,
+  getF3Standings,
   getF1AcademyStandings,
   getTeamColor,
 } from '../lib/standingsApi'
 import type { StandingsData, DriverRow, ConstructorRow } from '../lib/standingsApi'
 
 const CATEGORIES = [
-  { id: 'formula-1', label: 'Formula 1', live: true },
-  { id: 'formula-e', label: 'Formula E', live: false },
-  { id: 'indycar', label: 'IndyCar', live: false },
-  { id: 'feeder-series', label: 'F2', live: false },
+  { id: 'formula-1', label: 'F1', live: true },
+  { id: 'f2', label: 'F2', live: false },
+  { id: 'f3', label: 'F3', live: false },
   { id: 'f1-academy', label: 'F1 Academy', live: false },
+  { id: 'formula-e', label: 'FE', live: false },
+  { id: 'indycar', label: 'IndyCar', live: false },
 ] as const
 
 type CategoryId = (typeof CATEGORIES)[number]['id']
@@ -46,17 +48,20 @@ export default function StandingsPage() {
           case 'formula-1':
             result = await fetchF1Standings()
             break
+          case 'f2':
+            result = getF2Standings()
+            break
+          case 'f3':
+            result = getF3Standings()
+            break
+          case 'f1-academy':
+            result = getF1AcademyStandings()
+            break
           case 'formula-e':
             result = getFormulaEStandings()
             break
           case 'indycar':
             result = getIndyCarStandings()
-            break
-          case 'feeder-series':
-            result = getFeederSeriesStandings()
-            break
-          case 'f1-academy':
-            result = getF1AcademyStandings()
             break
         }
         setData(result)

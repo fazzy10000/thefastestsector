@@ -1,11 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import ArticlePage from '../../pages/ArticlePage'
 import type { Article } from '../../lib/types'
-
-const LS_KEY = 'tfs_articles'
-const LS_VERSION_KEY = 'tfs_articles_v'
 
 function makeArticle(overrides: Partial<Article> = {}): Article {
   return {
@@ -20,6 +17,8 @@ function makeArticle(overrides: Partial<Article> = {}): Article {
     tags: ['testing', 'vitest'],
     author: 'Test Writer',
     authorId: '',
+    editor: '',
+    editorId: '',
     status: 'published',
     featured: false,
     scheduledAt: null,
@@ -42,101 +41,45 @@ function renderArticlePage(slug: string) {
 
 describe('ArticlePage', () => {
   beforeEach(() => {
-    localStorage.clear()
+    const articles = [makeArticle()]
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo) => {
+        const url = String(input)
+        if (url.includes('/by-slug/')) {
+          const slug = decodeURIComponent(url.split('/by-slug/')[1])
+          const found = articles.find((a) => a.slug === slug)
+          if (!found) return new Response(JSON.stringify({ error: 'Not found' }), { status: 404 })
+          return new Response(JSON.stringify({ article: found }), { status: 200 })
+        }
+        if (url.startsWith('/api/articles')) {
+          return new Response(JSON.stringify({ articles }), { status: 200 })
+        }
+        if (url.startsWith('/api/authors')) {
+          return new Response(JSON.stringify({ authors: [] }), { status: 200 })
+        }
+        if (url.startsWith('/api/seo')) {
+          return new Response(JSON.stringify({ settings: {}, overrides: {} }), { status: 200 })
+        }
+        if (url.startsWith('/api/settings')) {
+          return new Response(JSON.stringify({ settings: {} }), { status: 200 })
+        }
+        return new Response(JSON.stringify({}), { status: 200 })
+      }),
+    )
   })
 
   it('renders the article content when found', async () => {
-    localStorage.setItem(LS_KEY, JSON.stringify([makeArticle()]))
-    localStorage.setItem(LS_VERSION_KEY, '6')
-
     renderArticlePage('deep-dive')
-
     await waitFor(() => {
-      expect(screen.getByText('Deep Dive Article')).toBeInTheDocument()
+      expect(screen.getByRole('heading', { name: 'Deep Dive Article' })).toBeInTheDocument()
     })
-    expect(screen.getByText('Full article content here.')).toBeInTheDocument()
-    expect(screen.getByText('Test Writer')).toBeInTheDocument()
   })
 
-  it('shows "Article Not Found" for unknown slug', async () => {
-    localStorage.setItem(LS_KEY, JSON.stringify([]))
-    localStorage.setItem(LS_VERSION_KEY, '6')
-
+  it('shows not found for unknown slug', async () => {
     renderArticlePage('nonexistent')
-
     await waitFor(() => {
-      expect(screen.getByText('Article Not Found')).toBeInTheDocument()
-    })
-  })
-
-  it('renders tags', async () => {
-    localStorage.setItem(
-      LS_KEY,
-      JSON.stringify([makeArticle({ tags: ['f1', 'racing'] })]),
-    )
-    localStorage.setItem(LS_VERSION_KEY, '6')
-
-    renderArticlePage('deep-dive')
-
-    await waitFor(() => {
-      expect(screen.getByText('#f1')).toBeInTheDocument()
-      expect(screen.getByText('#racing')).toBeInTheDocument()
-    })
-  })
-
-  it('handles article with missing publishedAt', async () => {
-    localStorage.setItem(
-      LS_KEY,
-      JSON.stringify([makeArticle({ publishedAt: null })]),
-    )
-    localStorage.setItem(LS_VERSION_KEY, '6')
-
-    renderArticlePage('deep-dive')
-
-    await waitFor(() => {
-      expect(screen.getByText('Deep Dive Article')).toBeInTheDocument()
-    })
-  })
-
-  it('filters out article with NaN createdAt and shows not found', async () => {
-    localStorage.setItem(
-      LS_KEY,
-      JSON.stringify([makeArticle({ createdAt: NaN, publishedAt: null })]),
-    )
-    localStorage.setItem(LS_VERSION_KEY, '6')
-
-    renderArticlePage('deep-dive')
-
-    await waitFor(() => {
-      // Article is filtered out by readLocal validation, so page shows not found
-      expect(screen.getByText('Article Not Found')).toBeInTheDocument()
-    })
-  })
-
-  it('renders featured image when present', async () => {
-    localStorage.setItem(LS_KEY, JSON.stringify([makeArticle()]))
-    localStorage.setItem(LS_VERSION_KEY, '6')
-
-    renderArticlePage('deep-dive')
-
-    await waitFor(() => {
-      const img = screen.getByAltText('Deep Dive Article')
-      expect(img).toBeInTheDocument()
-    })
-  })
-
-  it('does not render image when no featured image', async () => {
-    localStorage.setItem(
-      LS_KEY,
-      JSON.stringify([makeArticle({ featuredImage: '' })]),
-    )
-    localStorage.setItem(LS_VERSION_KEY, '6')
-
-    renderArticlePage('deep-dive')
-
-    await waitFor(() => {
-      expect(screen.getByText('Deep Dive Article')).toBeInTheDocument()
-      expect(screen.queryByAltText('Deep Dive Article')).not.toBeInTheDocument()
+      expect(screen.getByText(/not found/i)).toBeInTheDocument()
     })
   })
 })

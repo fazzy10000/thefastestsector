@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Fetches all posts from the WordPress REST API at thefastestsector.com
- * and writes them as a JSON file that the site can import into Firebase.
+ * and writes them as a JSON file that can be seeded into D1 (`npm run seed:d1`).
  */
 
 const WP_BASE = 'https://thefastestsector.com/wp-json/wp/v2'

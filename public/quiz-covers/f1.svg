@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750" role="img" aria-label="Formula 1 quiz cover">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b0a1f"/>
+      <stop offset="55%" stop-color="#c8102e"/>
+      <stop offset="100%" stop-color="#3d0812"/>
+    </linearGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" fill="none" stroke="#ffffff" stroke-opacity="0.08"/>
+    </pattern>
+  </defs>
+  <rect width="1200" height="750" fill="url(#bg)"/>
+  <rect width="1200" height="750" fill="url(#grid)"/>
+  <circle cx="980" cy="130" r="220" fill="#ffffff" fill-opacity="0.06"/>
+  <circle cx="180" cy="620" r="180" fill="#000000" fill-opacity="0.18"/>
+  <path d="M120 520 C260 420, 420 560, 560 470 S860 390, 1080 300" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="10" stroke-linecap="round"/>
+  <text x="72" y="120" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="700" letter-spacing="6">FORMULA 1</text>
+  <text x="72" y="170" fill="#ffffff" fill-opacity="0.72" font-family="Arial, Helvetica, sans-serif" font-size="22">Season knowledge check</text>
+</svg>

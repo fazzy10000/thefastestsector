@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useAuthors } from '../../hooks/useAuthors'
 import type { Author } from '../../lib/types'
-import { PlusCircle, Edit, Trash2, X, Save } from 'lucide-react'
+import { PlusCircle, Edit, Trash2, X, Save, FolderOpen } from 'lucide-react'
+import MediaPicker from '../../components/admin/MediaPicker'
 
 const EMPTY_AUTHOR: Author = {
   id: '',
@@ -16,6 +17,7 @@ const EMPTY_AUTHOR: Author = {
 export default function AuthorManager() {
   const { authors, saveAuthor, removeAuthor } = useAuthors()
   const [editing, setEditing] = useState<Author | null>(null)
+  const [libraryOpen, setLibraryOpen] = useState(false)
 
   const handleNew = () => {
     setEditing({ ...EMPTY_AUTHOR, id: crypto.randomUUID() })
@@ -123,14 +125,24 @@ export default function AuthorManager() {
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Avatar URL</label>
-                <input
-                  type="text"
-                  value={editing.avatar}
-                  onChange={(e) => setEditing({ ...editing, avatar: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
-                  placeholder="https://..."
-                />
+                <label className="block text-xs font-medium text-gray-500 mb-1">Avatar</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editing.avatar}
+                    onChange={(e) => setEditing({ ...editing, avatar: e.target.value })}
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
+                    placeholder="https://..."
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setLibraryOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    Library
+                  </button>
+                </div>
                 {editing.avatar && (
                   <img src={editing.avatar} alt="" className="w-16 h-16 rounded-full object-cover mt-2" />
                 )}
@@ -188,6 +200,16 @@ export default function AuthorManager() {
           </div>
         </div>
       )}
+
+      <MediaPicker
+        open={libraryOpen && Boolean(editing)}
+        onClose={() => setLibraryOpen(false)}
+        title="Choose avatar"
+        imagesOnly
+        onSelect={(asset) => {
+          if (editing) setEditing({ ...editing, avatar: asset.url })
+        }}
+      />
     </div>
   )
 }

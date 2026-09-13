@@ -6,6 +6,7 @@ import RacingLoader from '../components/RacingLoader'
 import { useQuizzes } from '../hooks/useQuizzes'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/types'
 import type { Quiz } from '../lib/types'
+import { quizCoverImage } from '../lib/quizCovers'
 
 function scoreRating(pct: number): { title: string; subtitle: string } {
   if (pct >= 95) return { title: 'Pole Position!', subtitle: 'A qualifying lap worth of knowledge.' }
@@ -182,7 +183,7 @@ export default function QuizPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 md:py-10 pb-16">
-      <SEO title={quiz.title} description={quiz.description} image={quiz.featuredImage} />
+      <SEO title={quiz.title} description={quiz.description} image={quizCoverImage(quiz.category, quiz.featuredImage)} />
       <ConfettiCanvas active={showConfetti} />
 
       {!finished && (
@@ -190,7 +191,7 @@ export default function QuizPage() {
           <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-white/10 shadow-lg mb-8 bg-surface-card dark:bg-white/5">
             <div className="relative aspect-[21/9] md:aspect-[21/8] bg-gray-900">
               <img
-                src={quiz.featuredImage}
+                src={quizCoverImage(quiz.category, quiz.featuredImage)}
                 alt=""
                 className="w-full h-full object-cover opacity-90"
               />

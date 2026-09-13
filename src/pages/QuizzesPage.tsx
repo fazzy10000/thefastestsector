@@ -6,6 +6,7 @@ import RacingLoader from '../components/RacingLoader'
 import { useQuizzes } from '../hooks/useQuizzes'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/types'
 import type { Quiz } from '../lib/types'
+import { quizCoverImage } from '../lib/quizCovers'
 
 export default function QuizzesPage() {
   const { fetchQuizzes, loading } = useQuizzes()
@@ -61,7 +62,7 @@ export default function QuizzesPage() {
             >
               <Link to={`/quiz/${quiz.slug}`} className="block relative aspect-[16/10] overflow-hidden bg-gray-100 dark:bg-white/10">
                 <img
-                  src={quiz.featuredImage}
+                  src={quizCoverImage(quiz.category, quiz.featuredImage)}
                   alt=""
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />

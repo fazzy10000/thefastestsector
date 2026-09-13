@@ -10,8 +10,7 @@ export const SAMPLE_QUIZZES: Quiz[] = [
     description:
       'Test your knowledge of the 2026 Formula 1 season — regulations, calendar trivia, and championship fundamentals.',
     category: 'formula-1',
-    featuredImage:
-      'https://images.unsplash.com/photo-1541447270888-83e8494f991d?w=1200&q=80',
+    featuredImage: '/quiz-covers/f1.svg',
     status: 'published',
     createdAt: now - 86400000 * 14,
     updatedAt: now - 86400000 * 2,
@@ -107,8 +106,7 @@ export const SAMPLE_QUIZZES: Quiz[] = [
     description:
       'Five quick-fire questions on Formula E formats, venues, and race-craft — no pit wall radio required.',
     category: 'formula-e',
-    featuredImage:
-      'https://images.unsplash.com/photo-1590218151747-f1a1234679f4?w=1200&q=80',
+    featuredImage: '/quiz-covers/formula-e.svg',
     status: 'published',
     createdAt: now - 86400000 * 21,
     updatedAt: now - 86400000 * 5,
@@ -167,6 +165,65 @@ export const SAMPLE_QUIZZES: Quiz[] = [
         correctIndex: 0,
         explanation:
           'Gen4 continues the championship’s electric DNA with step-changes in performance and efficiency.',
+      },
+    ],
+  },
+  {
+    id: 'sample-quiz-indycar',
+    title: 'IndyCar Quick Fire',
+    slug: 'indycar-quick-fire',
+    description:
+      'Five fast questions on IndyCar formats, ovals, and race weekend basics.',
+    category: 'indycar',
+    featuredImage: '/quiz-covers/indycar.svg',
+    status: 'published',
+    createdAt: now - 86400000 * 10,
+    updatedAt: now - 86400000 * 1,
+    questions: [
+      {
+        id: 'ic-q1',
+        question: 'The Indianapolis 500 is traditionally held on which type of circuit?',
+        options: ['Street circuit', 'Road course', 'Oval', 'Rally stage'],
+        correctIndex: 2,
+        explanation: 'The Indy 500 is run on the 2.5-mile oval at Indianapolis Motor Speedway.',
+      },
+      {
+        id: 'ic-q2',
+        question: 'IndyCar races award championship points down to which finishing position (typical feature races)?',
+        options: ['P8', 'P10', 'P15', 'P20'],
+        correctIndex: 1,
+        explanation: 'Points are commonly paid through tenth place in standard IndyCar races.',
+      },
+      {
+        id: 'ic-q3',
+        question: 'Push-to-pass in IndyCar gives drivers:',
+        options: [
+          'A temporary power boost on road and street courses',
+          'Unlimited DRS everywhere',
+          'Mandatory pit stops',
+          'Extra fuel capacity',
+        ],
+        correctIndex: 0,
+        explanation: 'Push-to-pass provides extra horsepower for limited activations on applicable layouts.',
+      },
+      {
+        id: 'ic-q4',
+        question: 'Which event is widely considered the crown jewel of the IndyCar season?',
+        options: ['Long Beach', 'Indianapolis 500', 'Mid-Ohio', 'St. Petersburg'],
+        correctIndex: 1,
+        explanation: 'The Indy 500 is the series’ most iconic and historically significant race.',
+      },
+      {
+        id: 'ic-q5',
+        question: 'IndyCar competes on a mix of:',
+        options: [
+          'Ovals, road courses and street circuits',
+          'Ovals only',
+          'Street circuits only',
+          'Snow circuits',
+        ],
+        correctIndex: 0,
+        explanation: 'The calendar blends permanent road courses, temporary street tracks and ovals.',
       },
     ],
   },

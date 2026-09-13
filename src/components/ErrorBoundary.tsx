@@ -23,11 +23,7 @@ export default class ErrorBoundary extends Component<Props, State> {
   }
 
   handleReset = () => {
-    localStorage.removeItem('tfs_articles')
-    localStorage.removeItem('tfs_articles_v')
-    localStorage.removeItem('tfs_demo_auth')
     localStorage.removeItem('tfs_dark_mode')
-    localStorage.removeItem('tfs_settings')
     this.setState({ hasError: false })
     window.location.reload()
   }

@@ -4,13 +4,17 @@ import { formatDistanceToNow } from 'date-fns'
 import { AlertTriangle, Clock, Share2, Copy, ChevronRight } from 'lucide-react'
 import { useArticles } from '../hooks/useArticles'
 import { useAuth } from '../hooks/useAuth'
-import { fetchF1Standings } from '../lib/standingsApi'
-import { buildRaceSchedule, sortEventsChronologically } from '../data/raceSchedule2026'
+import { fetchF1Standings, getF2Standings, getF3Standings, getF1AcademyStandings, getFormulaEStandings, getIndyCarStandings } from '../lib/standingsApi'
+import { useRaceSchedule } from '../hooks/useRaceSchedule'
+import { sortEventsChronologically } from '../data/raceSchedule2026'
 import { flagEmojiFromCountryCode } from '../lib/countryFlags'
+import { schedulePath } from '../lib/scheduleLinks'
+import { articleSeriesContext } from '../lib/articleSeries'
 import RacingLoader from '../components/RacingLoader'
 import SEO from '../components/SEO'
 import AuthorBlock from '../components/AuthorBlock'
 import ReadNext from '../components/ReadNext'
+import AdSlot from '../components/AdSlot'
 import LatestResults from '../components/LatestResults'
 import RaceCountdown from '../components/RaceCountdown'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/types'
@@ -124,13 +128,18 @@ export default function ArticlePage() {
   const { slug } = useParams<{ slug: string }>()
   const [searchParams] = useSearchParams()
   const isPreview = searchParams.get('preview') === 'true'
-  const { getArticleBySlug, articles } = useArticles()
+  const { getArticleBySlug, articles, fetchArticles } = useArticles()
   const { isAuthenticated } = useAuth()
   const [article, setArticle] = useState<Article | null>(null)
   const [loading, setLoading] = useState(true)
   const [standingsDrivers, setStandingsDrivers] = useState<StandingsRow[]>([])
   const [standingsTab, setStandingsTab] = useState<'drivers' | 'constructors'>('drivers')
   const [standingsConstructors, setStandingsConstructors] = useState<{ position: number; name: string; points: number }[]>([])
+
+  useEffect(() => {
+    if (!article) return
+    void fetchArticles({ status: 'published', category: article.category, limit: 12 })
+  }, [fetchArticles, article?.category, article?.id])
 
   useEffect(() => {
     async function load() {
@@ -147,8 +156,34 @@ export default function ArticlePage() {
   }, [slug, getArticleBySlug, isPreview, isAuthenticated])
 
   useEffect(() => {
-    fetchF1Standings()
-      .then((data) => {
+    if (!article) return
+    const ctx = articleSeriesContext(article.category)
+
+    async function loadStandings() {
+      try {
+        let data
+        switch (ctx.standingsId) {
+          case 'formula-1':
+            data = await fetchF1Standings()
+            break
+          case 'f2':
+            data = getF2Standings()
+            break
+          case 'f3':
+            data = getF3Standings()
+            break
+          case 'f1-academy':
+            data = getF1AcademyStandings()
+            break
+          case 'formula-e':
+            data = getFormulaEStandings()
+            break
+          case 'indycar':
+            data = getIndyCarStandings()
+            break
+          default:
+            return
+        }
         setStandingsDrivers(
           data.drivers.slice(0, 5).map((d) => ({
             position: d.position,
@@ -165,29 +200,31 @@ export default function ArticlePage() {
             points: c.points,
           })),
         )
-      })
-      .catch(() => {
-        setStandingsDrivers([
-          { position: 1, name: 'Max Verstappen', code: 'VER', team: 'Red Bull', points: 195 },
-          { position: 2, name: 'Lando Norris', code: 'NOR', team: 'McLaren', points: 171 },
-          { position: 3, name: 'Lewis Hamilton', code: 'HAM', team: 'Mercedes', points: 140 },
-          { position: 4, name: 'Charles Leclerc', code: 'LEC', team: 'Ferrari', points: 132 },
-          { position: 5, name: 'George Russell', code: 'RUS', team: 'Mercedes', points: 118 },
-        ])
-      })
-  }, [])
+      } catch {
+        setStandingsDrivers([])
+        setStandingsConstructors([])
+      }
+    }
+    loadStandings()
+  }, [article])
 
-  const schedule = useMemo(() => buildRaceSchedule(Date.now()), [])
-  const nextF1Event = useMemo(
-    () =>
-      sortEventsChronologically(
-        schedule.filter((e) => e.series === 'f1' && e.status === 'upcoming'),
-      )[0] ?? null,
-    [schedule],
+  const seriesCtx = useMemo(
+    () => (article ? articleSeriesContext(article.category) : null),
+    [article],
   )
-  const nextF1Date = useMemo(
-    () => (nextF1Event ? new Date(nextF1Event.date + 'T00:00:00') : null),
-    [nextF1Event],
+
+  const { events: schedule } = useRaceSchedule()
+  const nextSeriesEvent = useMemo(() => {
+    if (!seriesCtx?.scheduleSeries) return null
+    return (
+      sortEventsChronologically(
+        schedule.filter((e) => e.series === seriesCtx.scheduleSeries && e.status === 'upcoming'),
+      )[0] ?? null
+    )
+  }, [schedule, seriesCtx])
+  const nextSeriesDate = useMemo(
+    () => (nextSeriesEvent ? new Date(nextSeriesEvent.date + 'T00:00:00') : null),
+    [nextSeriesEvent],
   )
 
   const relatedArticles = useMemo(
@@ -319,32 +356,38 @@ export default function ArticlePage() {
             </div>
           )}
 
-          <AuthorBlock authorId={article.authorId} authorName={article.author} />
+          <AuthorBlock
+            authorId={article.authorId}
+            authorName={article.author}
+            editorId={article.editorId}
+            editorName={article.editor}
+          />
           <ReadNext current={article} />
         </article>
 
         {/* Sidebar */}
         <aside className="space-y-5 lg:sticky lg:top-28 lg:self-start">
-          {/* Latest Results */}
-          <SidebarSection title="Latest Results">
-            <LatestResults series="f1" />
-          </SidebarSection>
+          <AdSlot placement="article-sidebar" />
+          {seriesCtx && (
+            <SidebarSection title="Latest Results">
+              <LatestResults series={seriesCtx.resultsSeries} />
+            </SidebarSection>
+          )}
 
-          {/* Next F1 Event */}
-          {nextF1Event && nextF1Date && (
-            <SidebarSection title="Next F1 Event">
+          {seriesCtx && nextSeriesEvent && nextSeriesDate && (
+            <SidebarSection title={`Next ${seriesCtx.label} Event`}>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-xl">{flagEmojiFromCountryCode(nextF1Event.countryCode)}</span>
+                <span className="text-xl">{flagEmojiFromCountryCode(nextSeriesEvent.countryCode)}</span>
                 <div>
-                  <p className="text-sm font-black text-text-primary dark:text-white leading-tight">{nextF1Event.name}</p>
-                  <p className="text-[11px] text-text-secondary dark:text-white/50">{nextF1Event.circuit}</p>
+                  <p className="text-sm font-black text-text-primary dark:text-white leading-tight">{nextSeriesEvent.name}</p>
+                  <p className="text-[11px] text-text-secondary dark:text-white/50">{nextSeriesEvent.circuit}</p>
                 </div>
               </div>
               <div className="bg-surface-dark rounded-lg p-3 text-white">
-                <RaceCountdown targetDate={nextF1Date} />
+                <RaceCountdown targetDate={nextSeriesDate} />
               </div>
               <Link
-                to="/schedule"
+                to={schedulePath(seriesCtx.scheduleSeries)}
                 className="block text-center text-[11px] font-bold uppercase tracking-wider text-primary hover:underline mt-3"
               >
                 View Full Schedule
@@ -352,7 +395,6 @@ export default function ArticlePage() {
             </SidebarSection>
           )}
 
-          {/* Related Articles */}
           {relatedArticles.length > 0 && (
             <SidebarSection title="Related Articles">
               {relatedArticles.map((a) => (
@@ -367,10 +409,8 @@ export default function ArticlePage() {
             </SidebarSection>
           )}
 
-          {/* Standings */}
-          {standingsDrivers.length > 0 && (
-            <SidebarSection title="F1 Standings">
-              {/* Tabs */}
+          {seriesCtx && standingsDrivers.length > 0 && (
+            <SidebarSection title={`${seriesCtx.label} Standings`}>
               <div className="flex gap-1 mb-3 bg-gray-100 dark:bg-white/10 p-0.5 rounded-lg">
                 {(['drivers', 'constructors'] as const).map((tab) => (
                   <button
@@ -395,13 +435,21 @@ export default function ArticlePage() {
                 </div>
               ))}
 
-              {standingsTab === 'constructors' && standingsConstructors.map((row) => (
-                <div key={row.position} className="flex items-center gap-2 py-1.5 border-b border-gray-200 dark:border-white/5 last:border-0">
-                  <span className="text-[11px] font-bold text-text-secondary dark:text-white/50 w-4">{row.position}</span>
-                  <span className="text-[11px] font-black text-text-primary dark:text-white flex-1 truncate">{row.name}</span>
-                  <span className="text-[11px] font-bold text-text-primary dark:text-white">{row.points}</span>
-                </div>
-              ))}
+              {standingsTab === 'constructors' && (
+                standingsConstructors.length > 0 ? (
+                  standingsConstructors.map((row) => (
+                    <div key={row.position} className="flex items-center gap-2 py-1.5 border-b border-gray-200 dark:border-white/5 last:border-0">
+                      <span className="text-[11px] font-bold text-text-secondary dark:text-white/50 w-4">{row.position}</span>
+                      <span className="text-[11px] font-black text-text-primary dark:text-white flex-1 truncate">{row.name}</span>
+                      <span className="text-[11px] font-bold text-text-primary dark:text-white">{row.points}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-[11px] text-text-secondary dark:text-white/50 py-2">
+                    No constructor standings for this series.
+                  </p>
+                )
+              )}
 
               <Link to="/standings" className="block text-center text-[11px] font-bold uppercase tracking-wider text-primary hover:underline mt-3">
                 Full Standings

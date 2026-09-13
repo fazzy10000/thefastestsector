@@ -6,6 +6,7 @@ afterEach(() => {
   cleanup()
   localStorage.clear()
   document.documentElement.classList.remove('dark')
+  vi.unstubAllGlobals()
 })
 
 Object.defineProperty(window, 'matchMedia', {
@@ -21,12 +22,3 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 })
-
-vi.mock('../lib/firebase', () => ({
-  isFirebaseConfigured: false,
-  isDemoMode: true,
-  app: null,
-  auth: null,
-  db: null,
-  storage: null,
-}))

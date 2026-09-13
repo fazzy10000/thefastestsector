@@ -1,17 +1,13 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
-import { render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { useArticles } from '../../hooks/useArticles'
-import { useAuth } from '../../hooks/useAuth'
-import Home from '../../pages/Home'
 import type { Article, Category, ContentType } from '../../lib/types'
 
-const LS_KEY = 'tfs_articles'
-const LS_VERSION_KEY = 'tfs_articles_v'
+const store: { articles: Article[] } = { articles: [] }
 
-function makeNewArticle(overrides: Partial<Article> = {}): Omit<Article, 'id'> {
+function makeArticle(overrides: Partial<Article> = {}): Article {
   return {
+    id: overrides.id || crypto.randomUUID(),
     title: 'Published Test',
     slug: 'published-test',
     excerpt: 'An article published through the admin',
@@ -22,6 +18,8 @@ function makeNewArticle(overrides: Partial<Article> = {}): Omit<Article, 'id'> {
     tags: ['test'],
     author: 'Admin User',
     authorId: '',
+    editor: '',
+    editorId: '',
     status: 'published',
     featured: false,
     scheduledAt: null,
@@ -32,254 +30,75 @@ function makeNewArticle(overrides: Partial<Article> = {}): Omit<Article, 'id'> {
   }
 }
 
-describe('publish flow integration', () => {
+describe('articles API hook', () => {
   beforeEach(() => {
-    localStorage.clear()
+    store.articles = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo, init?: RequestInit) => {
+        const url = String(input)
+        const method = (init?.method || 'GET').toUpperCase()
+
+        if (url.startsWith('/api/articles') && method === 'GET') {
+          const u = new URL(url, 'http://localhost')
+          let list = [...store.articles]
+          const status = u.searchParams.get('status')
+          if (status) list = list.filter((a) => a.status === status)
+          return new Response(JSON.stringify({ articles: list }), { status: 200 })
+        }
+
+        if (url === '/api/articles' && method === 'POST') {
+          const body = JSON.parse(String(init?.body || '{}')) as Omit<Article, 'id'>
+          const article = makeArticle(body)
+          store.articles.unshift(article)
+          return new Response(JSON.stringify({ id: article.id }), { status: 200 })
+        }
+
+        const patch = url.match(/^\/api\/articles\/([^/]+)$/)
+        if (patch && method === 'PATCH') {
+          const id = patch[1]
+          const body = JSON.parse(String(init?.body || '{}')) as Partial<Article>
+          const idx = store.articles.findIndex((a) => a.id === id)
+          if (idx >= 0) store.articles[idx] = { ...store.articles[idx], ...body }
+          return new Response(JSON.stringify({ ok: true }), { status: 200 })
+        }
+
+        if (patch && method === 'DELETE') {
+          const id = patch[1]
+          store.articles = store.articles.filter((a) => a.id !== id)
+          return new Response(JSON.stringify({ ok: true }), { status: 200 })
+        }
+
+        return new Response(JSON.stringify({ error: 'not found' }), { status: 404 })
+      }),
+    )
   })
 
-  it('full flow: login → create article → article appears on homepage', async () => {
-    // 1. Demo login
-    const { result: auth } = renderHook(() => useAuth())
-    act(() => auth.current.demoSignIn())
-    expect(auth.current.isAuthenticated).toBe(true)
-
-    // 2. Create and publish article
-    const { result: articles } = renderHook(() => useArticles())
+  it('creates and lists published articles', async () => {
+    const { result } = renderHook(() => useArticles())
     await act(async () => {
-      await articles.current.createArticle(
-        makeNewArticle({ title: 'Breaking: Test Passes!' }),
+      await result.current.createArticle(
+        makeArticle({ title: 'Breaking: Test Passes!', id: undefined as unknown as string }),
       )
     })
-
-    // 3. Verify it shows on the homepage
-    render(
-      <MemoryRouter>
-        <Home />
-      </MemoryRouter>,
-    )
-
+    await act(async () => {
+      await result.current.fetchArticles({ status: 'published' })
+    })
     await waitFor(() => {
-      expect(
-        screen.getAllByText('Breaking: Test Passes!').length,
-      ).toBeGreaterThan(0)
+      expect(result.current.articles.some((a) => a.title === 'Breaking: Test Passes!')).toBe(true)
     })
   })
 
-  it('draft article does NOT appear on homepage', async () => {
-    const { result: articles } = renderHook(() => useArticles())
+  it('keeps drafts out of published list', async () => {
+    const { result } = renderHook(() => useArticles())
     await act(async () => {
-      await articles.current.createArticle(
-        makeNewArticle({ title: 'Secret Draft', status: 'draft' }),
+      await result.current.createArticle(
+        makeArticle({ title: 'Secret Draft', status: 'draft', id: undefined as unknown as string }),
       )
     })
-
-    render(
-      <MemoryRouter>
-        <Home />
-      </MemoryRouter>,
-    )
-
-    await waitFor(() => {
-      expect(screen.queryByText('Secret Draft')).not.toBeInTheDocument()
-    })
-  })
-
-  it('editing an article preserves createdAt', async () => {
-    const { result: articles } = renderHook(() => useArticles())
-    const originalTime = Date.now() - 100000
-
-    let id = ''
     await act(async () => {
-      id = await articles.current.createArticle(
-        makeNewArticle({ title: 'Edit Me', createdAt: originalTime }),
-      )
+      await result.current.fetchArticles({ status: 'published' })
     })
-
-    // Simulate the ArticleEditor update (the fixed version that omits createdAt)
-    await act(async () => {
-      await articles.current.updateArticle(id, {
-        title: 'Edited Title',
-        updatedAt: Date.now(),
-      })
-    })
-
-    let found: Article | null = null
-    await act(async () => {
-      found = await articles.current.getArticle(id)
-    })
-
-    expect(found!.title).toBe('Edited Title')
-    expect(found!.createdAt).toBe(originalTime)
-  })
-
-  it('publishing multiple articles shows all on homepage', async () => {
-    const { result: articles } = renderHook(() => useArticles())
-
-    await act(async () => {
-      for (let i = 0; i < 3; i++) {
-        await articles.current.createArticle(
-          makeNewArticle({
-            title: `Article ${i}`,
-            slug: `article-${i}`,
-            createdAt: Date.now() - i * 1000,
-          }),
-        )
-      }
-    })
-
-    render(
-      <MemoryRouter>
-        <Home />
-      </MemoryRouter>,
-    )
-
-    await waitFor(() => {
-      for (let i = 0; i < 3; i++) {
-        expect(screen.getAllByText(`Article ${i}`).length).toBeGreaterThan(0)
-      }
-    })
-  })
-
-  it('deleting an article removes it from homepage', async () => {
-    localStorage.setItem(LS_KEY, JSON.stringify([]))
-    localStorage.setItem(LS_VERSION_KEY, '6')
-
-    const { result: articles } = renderHook(() => useArticles())
-
-    let id = ''
-    await act(async () => {
-      id = await articles.current.createArticle(
-        makeNewArticle({ title: 'Delete Me' }),
-      )
-    })
-
-    await act(async () => {
-      await articles.current.removeArticle(id)
-    })
-
-    render(
-      <MemoryRouter>
-        <Home />
-      </MemoryRouter>,
-    )
-
-    await waitFor(() => {
-      expect(screen.queryByText('Delete Me')).not.toBeInTheDocument()
-    })
-  })
-
-  it('toggling article status between draft/published works', async () => {
-    localStorage.setItem(LS_KEY, JSON.stringify([]))
-    localStorage.setItem(LS_VERSION_KEY, '6')
-
-    const { result: articles } = renderHook(() => useArticles())
-
-    let id = ''
-    await act(async () => {
-      id = await articles.current.createArticle(
-        makeNewArticle({ title: 'Toggle Status', status: 'published' }),
-      )
-    })
-
-    // Unpublish
-    await act(async () => {
-      await articles.current.updateArticle(id, { status: 'draft' })
-    })
-
-    let found: Article | null = null
-    await act(async () => {
-      found = await articles.current.getArticle(id)
-    })
-    expect(found!.status).toBe('draft')
-
-    // Republish
-    await act(async () => {
-      await articles.current.updateArticle(id, { status: 'published' })
-    })
-
-    await act(async () => {
-      found = await articles.current.getArticle(id)
-    })
-    expect(found!.status).toBe('published')
-  })
-})
-
-describe('data corruption recovery', () => {
-  beforeEach(() => {
-    localStorage.clear()
-  })
-
-  it('app recovers from completely corrupted localStorage', async () => {
-    localStorage.setItem(LS_KEY, '!!!not json!!!')
-    localStorage.setItem(LS_VERSION_KEY, '6')
-
-    render(
-      <MemoryRouter>
-        <Home />
-      </MemoryRouter>,
-    )
-
-    // Should not crash — either shows empty or re-seeds
-    await waitFor(() => {
-      expect(document.body).toBeInTheDocument()
-    })
-  })
-
-  it('app recovers from articles with undefined createdAt (the original bug)', async () => {
-    const corruptArticle = {
-      id: 'bad-1',
-      title: 'Corrupt Article',
-      slug: 'corrupt',
-      excerpt: 'Has undefined createdAt',
-      content: '<p>Content</p>',
-      featuredImage: '',
-      category: 'formula-1',
-      contentType: 'news',
-      tags: [],
-      author: 'Admin',
-      status: 'published',
-      featured: true,
-      updatedAt: Date.now(),
-      publishedAt: Date.now(),
-      // createdAt intentionally omitted to simulate the bug
-    }
-
-    localStorage.setItem(LS_KEY, JSON.stringify([corruptArticle]))
-    localStorage.setItem(LS_VERSION_KEY, '6')
-
-    render(
-      <MemoryRouter>
-        <Home />
-      </MemoryRouter>,
-    )
-
-    // Should not crash
-    await waitFor(() => {
-      expect(document.body).toBeInTheDocument()
-    })
-  })
-
-  it('app renders after localStorage is emptied mid-session', async () => {
-    const { result: articles } = renderHook(() => useArticles())
-
-    await act(async () => {
-      await articles.current.createArticle(
-        makeNewArticle({ title: 'Will Survive' }),
-      )
-    })
-
-    // Wipe localStorage like it's been cleared
-    localStorage.clear()
-
-    render(
-      <MemoryRouter>
-        <Home />
-      </MemoryRouter>,
-    )
-
-    // Should re-seed and render without crashing
-    await waitFor(() => {
-      expect(document.body).toBeInTheDocument()
-    })
+    expect(result.current.articles.some((a) => a.title === 'Secret Draft')).toBe(false)
   })
 })

@@ -2,16 +2,29 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "thefastestsector",
   "compatibility_date": "2026-04-12",
+  "dev": { "port": 8787 },
   "main": "worker/index.ts",
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application"
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/media/*"]
   },
   "r2_buckets": [
     { "binding": "IMAGES", "bucket_name": "tfs-images" }
   ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "thefastestsector",
+      "database_id": "fa2fad1d-8c5a-43a4-bdbd-02d9caeb691d"
+    }
+  ],
   "vars": {
-    "FIREBASE_PROJECT_ID": "the-fastest-sector",
-    "R2_PUBLIC_URL": "https://pub-de50aef2f1cd4436bfc3bc131bd72420.r2.dev"
+    "R2_PUBLIC_URL": "https://pub-de50aef2f1cd4436bfc3bc131bd72420.r2.dev",
+    "NEWSLETTER_FROM": "The Fastest Sector <beth.t@example.com>"
+  },
+  "observability": {
+    "enabled": true
   }
 }

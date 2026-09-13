@@ -8,6 +8,11 @@ dist/
 .env
 .env.local
 .env.*.local
+.dev.vars
+
+# Local credential leftovers — never commit
+firebase-service-account.json
+*-firebase-adminsdk-*.json
 
 # Editor
 .vscode/
@@ -20,6 +25,11 @@ dist/
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
-npm-debug.log*
+# Wrangler local state
+.wrangler/
+.seed-*.sql
+
+# Local temp / scratch
+tmp-screenshots/
+body.txt
+

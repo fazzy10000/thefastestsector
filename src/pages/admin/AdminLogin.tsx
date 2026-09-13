@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { LogIn, Zap } from 'lucide-react'
+import { LogIn } from 'lucide-react'
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { signIn, demoSignIn, isDemo, isAuthenticated } = useAuth()
+  const { signIn, isAuthenticated } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -22,16 +22,11 @@ export default function AdminLogin() {
     try {
       await signIn(email, password)
       navigate('/admin')
-    } catch {
-      setError(isDemo ? 'Firebase not configured — use Demo Login below' : 'Invalid email or password')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Invalid email or password')
     } finally {
       setLoading(false)
     }
-  }
-
-  const handleDemoLogin = () => {
-    demoSignIn()
-    setTimeout(() => navigate('/admin'), 50)
   }
 
   return (
@@ -85,27 +80,6 @@ export default function AdminLogin() {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-
-        {isDemo && (
-          <div className="mt-4">
-            <div className="relative flex items-center justify-center my-4">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/10" />
-              </div>
-              <span className="relative px-3 text-xs text-white/40 bg-surface-dark">or</span>
-            </div>
-            <button
-              onClick={handleDemoLogin}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 transition-colors font-medium text-sm"
-            >
-              <Zap className="w-4 h-4 text-yellow-400" />
-              Demo Login (local data)
-            </button>
-            <p className="text-center text-white/30 text-xs mt-2">
-              Dev/demo mode — data is stored in your browser&apos;s localStorage
-            </p>
-          </div>
-        )}
       </div>
     </div>
   )

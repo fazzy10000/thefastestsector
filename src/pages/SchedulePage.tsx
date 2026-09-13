@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { CalendarDays, MapPin, Sparkles } from 'lucide-react'
 import SEO from '../components/SEO'
 import type { RaceEvent } from '../lib/types'
 import { flagEmojiFromCountryCode } from '../lib/countryFlags'
-import { buildRaceSchedule, sortEventsChronologically } from '../data/raceSchedule2026'
-
-type SeriesFilter = 'all' | RaceEvent['series']
+import { useRaceSchedule } from '../hooks/useRaceSchedule'
+import { sortEventsChronologically } from '../data/raceSchedule2026'
+import { parseSeriesFilter, type SeriesFilter } from '../lib/scheduleLinks'
 
 const SERIES_TABS: { id: SeriesFilter; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -61,11 +62,27 @@ function findNextUpcomingId(events: RaceEvent[]): string | null {
 }
 
 export default function SchedulePage() {
-  const [series, setSeries] = useState<SeriesFilter>('all')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [series, setSeries] = useState<SeriesFilter>(() => parseSeriesFilter(searchParams.get('series')))
   const nextRef = useRef<HTMLDivElement | null>(null)
   const didScroll = useRef(false)
 
-  const allEvents = useMemo(() => buildRaceSchedule(Date.now()), [])
+  useEffect(() => {
+    setSeries(parseSeriesFilter(searchParams.get('series')))
+  }, [searchParams])
+
+  const handleSeriesChange = (next: SeriesFilter) => {
+    setSeries(next)
+    if (next === 'all') {
+      const params = new URLSearchParams(searchParams)
+      params.delete('series')
+      setSearchParams(params, { replace: true })
+    } else {
+      setSearchParams({ series: next }, { replace: true })
+    }
+  }
+
+  const { events: allEvents, loading } = useRaceSchedule()
 
   const filtered = useMemo(() => {
     const list = series === 'all' ? allEvents : allEvents.filter((e) => e.series === series)
@@ -99,8 +116,9 @@ export default function SchedulePage() {
           Race Schedule
         </h1>
         <p className="text-text-secondary dark:text-white/50 mt-2 max-w-2xl text-sm sm:text-base leading-relaxed">
-          Key rounds for the 2026 season across Formula 1, Formula E, IndyCar, and F1 Academy. Dates
-          are grouped by weekend; completed events are muted so you can focus on what is ahead.
+          Key rounds for the 2026 season across Formula 1, Formula E, IndyCar, and F1 Academy.
+          Formula 1 and IndyCar calendars are loaded from live sources; other series use site data.
+          Completed events are muted so you can focus on what is ahead.
         </p>
       </header>
 
@@ -110,7 +128,7 @@ export default function SchedulePage() {
           <button
             key={tab.id}
             type="button"
-            onClick={() => setSeries(tab.id)}
+            onClick={() => handleSeriesChange(tab.id)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
               series === tab.id
                 ? 'bg-primary text-white shadow-sm'
@@ -123,7 +141,13 @@ export default function SchedulePage() {
       </div>
 
       <div className="space-y-3">
-        {filtered.map((event) => {
+        {loading && (
+          <p className="text-sm text-text-secondary dark:text-white/50 py-8 text-center">
+            Loading latest schedule…
+          </p>
+        )}
+        {!loading &&
+          filtered.map((event) => {
           const isNext = event.id === nextId
           const completed = event.status === 'completed'
           const flag = flagEmojiFromCountryCode(event.countryCode)
@@ -210,7 +234,7 @@ export default function SchedulePage() {
         })}
       </div>
 
-      {filtered.length === 0 && (
+      {!loading && filtered.length === 0 && (
         <p className="text-center text-text-secondary dark:text-white/50 py-12 text-sm">
           No races for this filter.
         </p>
