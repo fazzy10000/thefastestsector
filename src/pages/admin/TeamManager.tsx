@@ -29,13 +29,13 @@ const ROLE_CONFIG: Record<UserRole, { label: string; color: string; icon: typeof
     label: 'Editor',
     color: 'bg-blue-50 text-blue-700 border-blue-200',
     icon: Edit3,
-    desc: 'Edit any article, manage authors',
+    desc: 'Edit any article; publish and schedule; manage authors',
   },
   author: {
     label: 'Author',
     color: 'bg-green-50 text-green-700 border-green-200',
     icon: UserCircle,
-    desc: 'Create and edit their own articles',
+    desc: 'Create and edit drafts (editors publish)',
   },
   seo: {
     label: 'SEO',

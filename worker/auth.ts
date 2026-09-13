@@ -141,6 +141,7 @@ export type AuthAction =
   | 'manage_authors'
   | 'edit_any_article'
   | 'edit_own_article'
+  | 'publish_article'
   | 'manage_settings'
   | 'manage_seo'
   | 'manage_quizzes'
@@ -158,6 +159,7 @@ export function can(role: UserRole, action: AuthAction): boolean {
       return role === 'admin' || role === 'seo'
     case 'manage_authors':
     case 'edit_any_article':
+    case 'publish_article':
     case 'manage_newsletter':
     case 'manage_ads':
       return role === 'admin' || role === 'editor'

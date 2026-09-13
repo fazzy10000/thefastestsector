@@ -57,7 +57,8 @@ export default function ArticleEditor() {
   const navigate = useNavigate()
   const { getArticle, createArticle, updateArticle } = useArticles()
   const { authors } = useAuthors()
-  const { user, uid } = useAuth()
+  const { user, uid, can } = useAuth()
+  const canPublish = can('publish_article')
   const { uploadImage, uploading } = useImageUpload()
   const { createAsset } = useMediaLibrary({ autoFetch: false })
   const { versions, fetchVersions, saveVersion } = useVersions(id)
@@ -169,7 +170,21 @@ export default function ArticleEditor() {
     setSaving(true)
     setSaveError('')
 
-    const finalStatus = saveStatus || status
+    let finalStatus = saveStatus || status
+    if (!canPublish) {
+      if (finalStatus === 'published' || finalStatus === 'scheduled') {
+        setSaveError('Only editors and admins can publish or schedule articles.')
+        setSaving(false)
+        return
+      }
+      // Authors saving content on a live piece must not unpublish it.
+      if (status === 'published' || status === 'scheduled') {
+        finalStatus = status
+      } else {
+        finalStatus = 'draft'
+      }
+    }
+
     const now = Date.now()
 
     if (isEditing && id) {
@@ -186,6 +201,9 @@ export default function ArticleEditor() {
     const scheduledTimestamp = finalStatus === 'scheduled' && scheduledAt
       ? new Date(scheduledAt).getTime()
       : null
+
+    const preserveLiveStatus =
+      !canPublish && (status === 'published' || status === 'scheduled')
 
     const data: Omit<Article, 'id'> = {
       title: title.trim(),
@@ -211,7 +229,12 @@ export default function ArticleEditor() {
     try {
       if (isEditing && id) {
         const { createdAt: _, ...updateData } = data
-        await updateArticle(id, updateData as Partial<Article>)
+        if (preserveLiveStatus) {
+          const { publishedAt: _p, scheduledAt: _s, ...contentOnly } = updateData
+          await updateArticle(id, contentOnly as Partial<Article>)
+        } else {
+          await updateArticle(id, updateData as Partial<Article>)
+        }
       } else {
         await createArticle(data)
       }
@@ -279,21 +302,29 @@ export default function ArticleEditor() {
             </button>
           )}
           <button
-            onClick={() => handleSave('draft')}
+            onClick={() => handleSave(canPublish ? 'draft' : undefined)}
             disabled={saving}
             className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
-            <span className="hidden sm:inline">Save</span> Draft
+            {!canPublish && (status === 'published' || status === 'scheduled') ? (
+              'Save'
+            ) : (
+              <>
+                <span className="hidden sm:inline">Save</span> Draft
+              </>
+            )}
           </button>
-          <button
-            onClick={() => handleSave('published')}
-            disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
-          >
-            <Eye className="w-4 h-4" />
-            Publish
-          </button>
+          {canPublish && (
+            <button
+              onClick={() => handleSave('published')}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-dark transition-colors disabled:opacity-50"
+            >
+              <Eye className="w-4 h-4" />
+              Publish
+            </button>
+          )}
         </div>
       </div>
 
@@ -579,37 +610,49 @@ export default function ArticleEditor() {
             </div>
           </div>
 
-          {/* Scheduling */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5">
-            <h3 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
-              <CalendarClock className="w-4 h-4 text-primary" />
-              Schedule
-            </h3>
-            <input
-              type="datetime-local"
-              value={scheduledAt}
-              onChange={(e) => setScheduledAt(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-primary"
-            />
-            {scheduledAt && (
-              <div className="mt-2 flex items-center gap-2">
-                <button
-                  onClick={() => handleSave('scheduled')}
-                  disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50"
-                >
-                  <CalendarClock className="w-3.5 h-3.5" />
-                  Schedule
-                </button>
-                <button
-                  onClick={() => setScheduledAt('')}
-                  className="px-3 py-2 text-xs text-gray-500 hover:text-gray-700"
-                >
-                  Clear
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Scheduling — editors & admins only */}
+          {canPublish ? (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 text-sm mb-3 flex items-center gap-2">
+                <CalendarClock className="w-4 h-4 text-primary" />
+                Schedule
+              </h3>
+              <input
+                type="datetime-local"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 focus:outline-none focus:border-primary"
+              />
+              {scheduledAt && (
+                <div className="mt-2 flex items-center gap-2">
+                  <button
+                    onClick={() => handleSave('scheduled')}
+                    disabled={saving}
+                    className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50"
+                  >
+                    <CalendarClock className="w-3.5 h-3.5" />
+                    Schedule
+                  </button>
+                  <button
+                    onClick={() => setScheduledAt('')}
+                    className="px-3 py-2 text-xs text-gray-500 hover:text-gray-700"
+                  >
+                    Clear
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="bg-white rounded-xl border border-gray-200 p-5">
+              <h3 className="font-semibold text-gray-900 text-sm mb-2 flex items-center gap-2">
+                <CalendarClock className="w-4 h-4 text-primary" />
+                Publishing
+              </h3>
+              <p className="text-xs text-gray-500 leading-relaxed">
+                Save your draft here. Editors and admins handle publishing and scheduling.
+              </p>
+            </div>
+          )}
 
           {/* Author */}
           <div className="bg-white rounded-xl border border-gray-200 p-5">

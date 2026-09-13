@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { formatDistanceToNow, format } from 'date-fns'
 import { useArticles } from '../../hooks/useArticles'
+import { useAuth } from '../../hooks/useAuth'
 import { CATEGORY_LABELS } from '../../lib/types'
 import type { Article } from '../../lib/types'
 import Pagination from '../../components/Pagination'
@@ -20,6 +21,9 @@ const PAGE_SIZE = 20
 
 export default function Dashboard() {
   const { fetchArticles, removeArticle, updateArticle, meta } = useArticles()
+  const { can } = useAuth()
+  const canPublish = can('publish_article')
+  const canDelete = can('edit_any_article')
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all')
@@ -201,7 +205,7 @@ export default function Dashboard() {
                           </span>
                         )}
                       </div>
-                    ) : (
+                    ) : canPublish ? (
                       <button
                         onClick={() => toggleStatus(article)}
                         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
@@ -217,6 +221,21 @@ export default function Dashboard() {
                         )}
                         {article.status}
                       </button>
+                    ) : (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                          article.status === 'published'
+                            ? 'bg-green-50 text-green-700'
+                            : 'bg-yellow-50 text-yellow-700'
+                        }`}
+                      >
+                        {article.status === 'published' ? (
+                          <CheckCircle className="w-3 h-3" />
+                        ) : (
+                          <Clock className="w-3 h-3" />
+                        )}
+                        {article.status}
+                      </span>
                     )}
                   </td>
                   <td className="px-5 py-4 text-xs text-gray-400">
@@ -238,13 +257,15 @@ export default function Dashboard() {
                       >
                         <Edit className="w-4 h-4" />
                       </Link>
-                      <button
-                        onClick={() => handleDelete(article.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {canDelete && (
+                        <button
+                          onClick={() => handleDelete(article.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

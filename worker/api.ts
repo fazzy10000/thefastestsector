@@ -1,5 +1,6 @@
 import type { Env, SessionUser, UserRole } from './env'
 import {
+  can,
   clearSessionCookie,
   createSessionToken,
   getSessionUser,
@@ -816,6 +817,16 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
       if ('error' in auth) return auth.error
       const body = await parseJson<Record<string, unknown>>(request)
       if (!body?.title || !body?.slug) return json({ error: 'Title and slug required' }, { status: 400 })
+      const status = String(body.status || 'draft')
+      if (
+        (status === 'published' || status === 'scheduled') &&
+        !can(auth.user.role, 'publish_article')
+      ) {
+        return json(
+          { error: 'Only editors and admins can publish or schedule articles' },
+          { status: 403 },
+        )
+      }
       const articleId = id()
       const now = Date.now()
       await env.DB.prepare(
@@ -838,7 +849,7 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
           String(body.authorId || ''),
           String(body.editor || ''),
           String(body.editorId || ''),
-          String(body.status || 'draft'),
+          status,
           body.featured ? 1 : 0,
           body.scheduledAt ?? null,
           Number(body.createdAt) || now,
@@ -883,6 +894,17 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
           .bind(articleId)
           .first<ArticleRow>()
         if (!existing) return json({ error: 'Not found' }, { status: 404 })
+        const nextStatus = body.status !== undefined ? String(body.status) : existing.status
+        const statusChanging = nextStatus !== existing.status
+        const liveStatuses = new Set(['published', 'scheduled'])
+        const publishAction =
+          statusChanging && (liveStatuses.has(nextStatus) || liveStatuses.has(existing.status))
+        if (publishAction && !can(auth.user.role, 'publish_article')) {
+          return json(
+            { error: 'Only editors and admins can publish, schedule, or unpublish articles' },
+            { status: 403 },
+          )
+        }
         const next = {
           title: body.title !== undefined ? String(body.title) : existing.title,
           slug: body.slug !== undefined ? String(body.slug) : existing.slug,
@@ -898,7 +920,7 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
           author_id: body.authorId !== undefined ? String(body.authorId) : existing.author_id,
           editor: body.editor !== undefined ? String(body.editor) : (existing.editor ?? ''),
           editor_id: body.editorId !== undefined ? String(body.editorId) : (existing.editor_id ?? ''),
-          status: body.status !== undefined ? String(body.status) : existing.status,
+          status: nextStatus,
           featured: body.featured !== undefined ? (body.featured ? 1 : 0) : existing.featured,
           scheduled_at:
             body.scheduledAt !== undefined ? (body.scheduledAt as number | null) : existing.scheduled_at,

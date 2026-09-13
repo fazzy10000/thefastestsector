@@ -12,8 +12,9 @@ export type TourStep = {
 
 /**
  * Role-aware tour steps. Capabilities verified against worker/auth.ts +
- * worker/api.ts: every role (incl. seo) may create/publish articles via
- * `edit_own_article`; deleting needs `edit_any_article` (admin/editor);
+ * worker/api.ts: authors/seo may create and edit article drafts via
+ * `edit_own_article`; publishing and scheduling need `publish_article`
+ * (admin/editor); deleting needs `edit_any_article` (admin/editor);
  * the SEO dashboard needs `manage_seo` (admin/seo); Team is admin-only.
  * The seo role's tour still centres on the SEO dashboard + overrides,
  * since writing is handled by the editorial roles.
@@ -79,7 +80,7 @@ export function getTourSteps(role: UserRole): TourStep[] {
         route: '/admin',
         target: 'dashboard-list',
         title: 'Articles live on the Dashboard',
-        body: 'Writing and publishing is handled by the writers; their articles appear here. You can open any article to check its live SEO panel score. That’s the tour — enjoy!',
+        body: 'Writing is handled by authors; editors and admins publish. Articles appear here — open any piece to check its live SEO panel score. That’s the tour — enjoy!',
       },
     ]
   }
@@ -151,8 +152,8 @@ export function getTourSteps(role: UserRole): TourStep[] {
       title: 'Draft, publish or schedule',
       body:
         role === 'author'
-          ? 'Save Draft keeps it private; Publish puts it live immediately — authors can publish their own work. To schedule instead, pick a date in the Schedule card on the right.'
-          : 'Save Draft keeps it private; Publish puts it live immediately. To schedule, pick a date in the Schedule card on the right and a Schedule button appears.',
+          ? 'Save Draft keeps your piece private for review. Publishing and scheduling are reserved for editors and admins — they’ll put it live when it’s ready.'
+          : 'Save Draft keeps it private; Publish puts it live immediately. To schedule, pick a date in the Schedule card on the right and a Schedule button appears. Authors can save drafts only — publishing is editor/admin.',
     },
     {
       id: 'dashboard-review',
@@ -161,7 +162,7 @@ export function getTourSteps(role: UserRole): TourStep[] {
       title: 'Back on the Dashboard',
       body:
         role === 'author'
-          ? 'Every article lands here with its status — published, draft or scheduled. Filter with the tabs above or click a status badge to toggle it. Deleting articles is reserved for editors and admins. That’s the tour — happy writing!'
+          ? 'Every article lands here with its status — published, draft or scheduled. Filter with the tabs above. Publishing and deleting are reserved for editors and admins. That’s the tour — happy writing!'
           : 'Every article lands here with its status — published, draft or scheduled. Filter with the tabs above, click a status badge to toggle publish/draft, or edit any time. That’s the tour — happy writing!',
     },
   ]
