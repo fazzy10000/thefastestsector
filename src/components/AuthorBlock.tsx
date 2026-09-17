@@ -2,16 +2,13 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthors } from '../hooks/useAuthors'
 import type { Author } from '../lib/types'
+import { displayAuthorName } from '../lib/formatAuthor'
 
 interface Props {
   authorId: string
   authorName: string
   editorId?: string
   editorName?: string
-}
-
-function displayName(name: string) {
-  return name.replace(/\s*\|\s*.*$/, '').trim() || name
 }
 
 export default function AuthorBlock({ authorId, authorName, editorId, editorName }: Props) {
@@ -32,7 +29,7 @@ export default function AuthorBlock({ authorId, authorName, editorId, editorName
     setEditor(ed)
   }, [authorId, authorName, editorId, editorName, getAuthor, getAuthorByName, authorsLoading])
 
-  const writerName = displayName(author?.name || authorName)
+  const writerName = displayAuthorName(author?.name || authorName)
   const writerHref = authorId || author?.id ? `/author/${authorId || author?.id}` : null
   const showEditedBy =
     Boolean(editorId || editorName) &&
@@ -144,7 +141,7 @@ export default function AuthorBlock({ authorId, authorName, editorId, editorName
             />
           ) : (
             <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold shrink-0">
-              {displayName(editor?.name || editorName || 'E').charAt(0)}
+              {displayAuthorName(editor?.name || editorName || 'E').charAt(0)}
             </div>
           )}
           <div className="min-w-0">
@@ -157,10 +154,10 @@ export default function AuthorBlock({ authorId, authorName, editorId, editorName
                   to={`/author/${editorId || editor?.id}`}
                   className="hover:text-primary transition-colors"
                 >
-                  {displayName(editor?.name || editorName || '')}
+                  {displayAuthorName(editor?.name || editorName || '')}
                 </Link>
               ) : (
-                displayName(editorName || '')
+                displayAuthorName(editorName || '')
               )}
             </p>
           </div>

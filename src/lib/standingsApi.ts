@@ -80,154 +80,61 @@ const TEAM_COLORS: Record<string, string> = {
   Williams: '#64C4FF',
   Audi: '#E00400',
   'Cadillac F1 Team': '#1E1E1E',
-  // Formula E
-  Porsche: '#D5001C',
-  Jaguar: '#006633',
-  Andretti: '#ED1C24',
-  Nissan: '#C3002F',
-  Envision: '#00BE26',
-  Maserati: '#001489',
-  Mahindra: '#DD052B',
-  NIO: '#000000',
-  'DS Penske': '#C5A867',
-  // IndyCar
-  'Chip Ganassi': '#2D68C4',
-  Penske: '#F7D633',
-  Andretti_IC: '#E31837',
-  'Arrow McLaren': '#FF8000',
-  'A.J. Foyt': '#D52B1E',
-  RLL: '#FFC72C',
-  'Ed Carpenter': '#002244',
-  Juncos: '#000000',
 }
 
 export function getTeamColor(team: string): string {
   return TEAM_COLORS[team] ?? '#6b7280'
 }
 
-// Sample standings for series without public APIs
-export function getFormulaEStandings(): StandingsData {
-  return {
-    season: '2025–26',
-    round: 'R8',
-    drivers: [
-      { position: 1, name: 'Pascal Wehrlein', team: 'Porsche', nationality: 'German', points: 118, wins: 3, code: 'WEH' },
-      { position: 2, name: 'Jake Dennis', team: 'Andretti', nationality: 'British', points: 105, wins: 2, code: 'DEN' },
-      { position: 3, name: 'Mitch Evans', team: 'Jaguar', nationality: 'New Zealander', points: 96, wins: 1, code: 'EVA' },
-      { position: 4, name: 'Nick Cassidy', team: 'Jaguar', nationality: 'New Zealander', points: 88, wins: 1, code: 'CAS' },
-      { position: 5, name: 'António Félix da Costa', team: 'Porsche', nationality: 'Portuguese', points: 72, wins: 1, code: 'AFC' },
-      { position: 6, name: 'Oliver Rowland', team: 'Nissan', nationality: 'British', points: 58, wins: 0, code: 'ROW' },
-      { position: 7, name: 'Sébastien Buemi', team: 'Envision', nationality: 'Swiss', points: 45, wins: 0, code: 'BUE' },
-      { position: 8, name: 'Jean-Éric Vergne', team: 'DS Penske', nationality: 'French', points: 38, wins: 0, code: 'VER' },
-      { position: 9, name: 'Sam Bird', team: 'McLaren', nationality: 'British', points: 30, wins: 0, code: 'BIR' },
-      { position: 10, name: 'Maximilian Günther', team: 'Maserati', nationality: 'German', points: 22, wins: 0, code: 'GUN' },
-    ],
-    constructors: [
-      { position: 1, name: 'Porsche', nationality: 'German', points: 190, wins: 4 },
-      { position: 2, name: 'Jaguar', nationality: 'British', points: 184, wins: 2 },
-      { position: 3, name: 'Andretti', nationality: 'American', points: 122, wins: 2 },
-      { position: 4, name: 'Nissan', nationality: 'Japanese', points: 78, wins: 0 },
-      { position: 5, name: 'DS Penske', nationality: 'French', points: 52, wins: 0 },
-    ],
-    fetchedAt: Date.now(),
-  }
+export interface LastRaceResult {
+  raceName: string
+  circuit: string
+  location: string
+  date: string
+  rows: {
+    position: number
+    code: string
+    name: string
+    team: string
+    gap: string
+  }[]
 }
 
-export function getIndyCarStandings(): StandingsData {
-  return {
-    season: '2026',
-    round: 'R5',
-    drivers: [
-      { position: 1, name: 'Alex Palou', team: 'Chip Ganassi', nationality: 'Spanish', points: 178, wins: 2, code: 'PAL' },
-      { position: 2, name: 'Colton Herta', team: 'Andretti', nationality: 'American', points: 165, wins: 1, code: 'HER' },
-      { position: 3, name: 'Will Power', team: 'Penske', nationality: 'Australian', points: 152, wins: 1, code: 'POW' },
-      { position: 4, name: 'Pato O\'Ward', team: 'Arrow McLaren', nationality: 'Mexican', points: 140, wins: 1, code: 'OWA' },
-      { position: 5, name: 'Scott Dixon', team: 'Chip Ganassi', nationality: 'New Zealander', points: 128, wins: 0, code: 'DIX' },
-      { position: 6, name: 'Josef Newgarden', team: 'Penske', nationality: 'American', points: 118, wins: 1, code: 'NEW' },
-      { position: 7, name: 'Marcus Armstrong', team: 'Chip Ganassi', nationality: 'New Zealander', points: 95, wins: 0, code: 'ARM' },
-      { position: 8, name: 'Kyle Kirkwood', team: 'Andretti', nationality: 'American', points: 82, wins: 0, code: 'KIR' },
-      { position: 9, name: 'Scott McLaughlin', team: 'Penske', nationality: 'New Zealander', points: 75, wins: 0, code: 'MCL' },
-      { position: 10, name: 'Alexander Rossi', team: 'Arrow McLaren', nationality: 'American', points: 60, wins: 0, code: 'ROS' },
-    ],
-    constructors: [],
-    fetchedAt: Date.now(),
-  }
-}
+export async function fetchF1LastRaceResults(): Promise<LastRaceResult> {
+  const res = await fetch(`${F1_BASE}/current/last/results.json`)
+  if (!res.ok) throw new Error('Failed to fetch F1 race results')
 
-export function getF2Standings(): StandingsData {
-  return {
-    season: '2026',
-    round: 'R4',
-    drivers: [
-      { position: 1, name: 'Gabriele Minì', team: 'Prema', nationality: 'Italian', points: 85, wins: 2, code: 'MIN' },
-      { position: 2, name: 'Luke Browning', team: 'Hitech', nationality: 'British', points: 72, wins: 1, code: 'BRO' },
-      { position: 3, name: 'Joshua Dürksen', team: 'AIX', nationality: 'Paraguayan', points: 64, wins: 1, code: 'DUR' },
-      { position: 4, name: 'Pepe Martí', team: 'Campos', nationality: 'Spanish', points: 55, wins: 0, code: 'MAR' },
-      { position: 5, name: 'Dino Beganovic', team: 'Prema', nationality: 'Swedish', points: 48, wins: 0, code: 'BEG' },
-      { position: 6, name: 'Ritomo Miyata', team: 'Rodin', nationality: 'Japanese', points: 38, wins: 0, code: 'MIY' },
-      { position: 7, name: 'Jak Crawford', team: 'DAMS', nationality: 'American', points: 30, wins: 0, code: 'CRA' },
-      { position: 8, name: 'Oliver Goethe', team: 'MP', nationality: 'Danish', points: 22, wins: 0, code: 'GOE' },
-      { position: 9, name: 'Amaury Cordeel', team: 'Hitech', nationality: 'Belgian', points: 18, wins: 0, code: 'COR' },
-      { position: 10, name: 'Enzo Fittipaldi', team: 'Van Amersfoort', nationality: 'Brazilian', points: 12, wins: 0, code: 'FIT' },
-    ],
-    constructors: [
-      { position: 1, name: 'Prema', nationality: 'Italian', points: 133, wins: 2 },
-      { position: 2, name: 'Hitech', nationality: 'British', points: 90, wins: 1 },
-      { position: 3, name: 'AIX', nationality: 'German', points: 64, wins: 1 },
-      { position: 4, name: 'Campos', nationality: 'Spanish', points: 55, wins: 0 },
-      { position: 5, name: 'Rodin', nationality: 'New Zealander', points: 38, wins: 0 },
-    ],
-    fetchedAt: Date.now(),
-  }
-}
+  const json = await res.json()
+  const race = json?.MRData?.RaceTable?.Races?.[0]
+  if (!race) throw new Error('No F1 race results returned')
 
-/** @deprecated Use getF2Standings */
-export function getFeederSeriesStandings(): StandingsData {
-  return getF2Standings()
-}
+  const locality = race.Circuit?.Location?.locality ?? ''
+  const country = race.Circuit?.Location?.country ?? ''
 
-export function getF3Standings(): StandingsData {
-  return {
-    season: '2026',
-    round: 'R4',
-    drivers: [
-      { position: 1, name: 'Rafael Câmara', team: 'Trident', nationality: 'Brazilian', points: 78, wins: 2, code: 'CAM' },
-      { position: 2, name: 'Nikola Tsolov', team: 'ART', nationality: 'Bulgarian', points: 66, wins: 1, code: 'TSO' },
-      { position: 3, name: 'Tuukka Taponen', team: 'ART', nationality: 'Finnish', points: 58, wins: 1, code: 'TAP' },
-      { position: 4, name: 'Ugo Ugochukwu', team: 'Prema', nationality: 'American', points: 52, wins: 1, code: 'UGO' },
-      { position: 5, name: 'Theophile Nael', team: 'Van Amersfoort', nationality: 'French', points: 44, wins: 0, code: 'NAE' },
-      { position: 6, name: 'Noah Strømsted', team: 'Trident', nationality: 'Danish', points: 36, wins: 0, code: 'STR' },
-      { position: 7, name: 'James Wharton', team: 'ART', nationality: 'Australian', points: 28, wins: 0, code: 'WHA' },
-      { position: 8, name: 'Mari Boya', team: 'Campos', nationality: 'Spanish', points: 22, wins: 0, code: 'BOY' },
-      { position: 9, name: 'Callum Voisin', team: 'Rodin', nationality: 'British', points: 16, wins: 0, code: 'VOI' },
-      { position: 10, name: 'Laurens van Hoepen', team: 'ART', nationality: 'Dutch', points: 12, wins: 0, code: 'VAN' },
-    ],
-    constructors: [
-      { position: 1, name: 'ART', nationality: 'French', points: 164, wins: 2 },
-      { position: 2, name: 'Trident', nationality: 'Italian', points: 114, wins: 2 },
-      { position: 3, name: 'Prema', nationality: 'Italian', points: 52, wins: 1 },
-      { position: 4, name: 'Van Amersfoort', nationality: 'Dutch', points: 44, wins: 0 },
-      { position: 5, name: 'Campos', nationality: 'Spanish', points: 22, wins: 0 },
-    ],
-    fetchedAt: Date.now(),
-  }
-}
+  const rows = (race.Results ?? []).slice(0, 3).map((r: any) => {
+    const position = Number(r.position)
+    let gap = r.status ?? ''
+    if (position === 1 && r.Time?.time) gap = 'Winner'
+    else if (r.Time?.time) {
+      // Ergast often already includes a leading "+" (e.g. "+4.351")
+      const raw = String(r.Time.time).trim()
+      gap = raw.startsWith('+') ? raw : `+${raw}`
+    } else if (r.positionText === 'R') gap = 'DNF'
 
-export function getF1AcademyStandings(): StandingsData {
+    return {
+      position,
+      code: r.Driver?.code ?? '',
+      name: `${r.Driver?.givenName ?? ''} ${r.Driver?.familyName ?? ''}`.trim(),
+      team: r.Constructor?.name ?? '',
+      gap,
+    }
+  })
+
   return {
-    season: '2026',
-    round: 'R3',
-    drivers: [
-      { position: 1, name: 'Doriane Pin', team: 'Prema', nationality: 'French', points: 75, wins: 3, code: 'PIN' },
-      { position: 2, name: 'Abbi Pulling', team: 'Rodin', nationality: 'British', points: 62, wins: 1, code: 'PUL' },
-      { position: 3, name: 'Hamda Al Qubaisi', team: 'Prema', nationality: 'Emirati', points: 48, wins: 1, code: 'ALQ' },
-      { position: 4, name: 'Alba Larsen', team: 'ART', nationality: 'Danish', points: 40, wins: 0, code: 'LAR' },
-      { position: 5, name: 'Marta García', team: 'Campos', nationality: 'Spanish', points: 30, wins: 0, code: 'GAR' },
-      { position: 6, name: 'Bianca Bustamante', team: 'ART', nationality: 'Filipino', points: 24, wins: 0, code: 'BUS' },
-      { position: 7, name: 'Nerea Martí', team: 'Campos', nationality: 'Spanish', points: 18, wins: 0, code: 'NMA' },
-      { position: 8, name: 'Lola Lovinfosse', team: 'MP', nationality: 'French', points: 10, wins: 0, code: 'LOV' },
-    ],
-    constructors: [],
-    fetchedAt: Date.now(),
+    raceName: race.raceName,
+    circuit: race.Circuit?.circuitName ?? '',
+    location: [locality, country].filter(Boolean).join(', '),
+    date: race.date,
+    rows,
   }
 }

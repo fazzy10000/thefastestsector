@@ -8,7 +8,7 @@ const FEATURES = [
   { key: 'games', icon: Gamepad2, title: 'Games', desc: 'Reaction tests, pit stop challenges and flag quizzes.', href: '/games', available: true },
   { key: 'polls', icon: BarChart2, title: 'Fan Poll', desc: 'Cast your vote and see what other fans think.', href: '/interactive/polls', available: true },
   { key: 'predictions', icon: Target, title: 'Predictions', desc: 'Make your predictions before each race weekend.', href: '/interactive/predictions', available: false },
-  { key: 'rankings', icon: Award, title: 'Rankings', desc: 'See where you rank against other fans.', href: '/standings', available: true },
+  { key: 'rankings', icon: Award, title: 'Championship Standings', desc: 'Live championship tables across the series we cover.', href: '/standings', available: true },
   { key: 'challenges', icon: Trophy, title: 'Challenges', desc: 'Compete in seasonal challenges and win prizes.', href: '/interactive/challenges', available: false },
 ]
 
@@ -21,7 +21,7 @@ export default function InteractivePage() {
   return (
     <div className="min-h-screen bg-surface-light dark:bg-surface-dark">
       <SEO
-        title={`${current?.title ?? 'Interactive'} | The Fastest Sector`}
+        title={current?.title ?? 'Interactive'}
         description="Quizzes, games, polls and more — be part of the action."
       />
 

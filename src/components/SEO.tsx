@@ -15,7 +15,26 @@ interface SEOProps {
 
 const SITE_NAME = 'The Fastest Sector'
 const DEFAULT_DESC = 'Home of quick, quirky and reliable motorsport content.'
-const BASE_URL = 'https://thefastestsector.com'
+const PRODUCTION_BASE = 'https://thefastestsector.com'
+
+function resolveBaseUrl(): string {
+  if (typeof window === 'undefined') return PRODUCTION_BASE
+  const host = window.location.hostname
+  if (host === 'thefastestsector.com' || host === 'www.thefastestsector.com' || host === 'localhost') {
+    return host === 'localhost' ? window.location.origin : PRODUCTION_BASE
+  }
+  // Preview / workers.dev: use the live origin so shares and canonical match the page
+  return window.location.origin
+}
+
+function buildDocumentTitle(title?: string): string {
+  if (!title?.trim()) return `${SITE_NAME} — ${DEFAULT_DESC}`
+  const cleaned = title
+    .replace(new RegExp(`\\s*[|—–-]\\s*${SITE_NAME}\\s*$`, 'i'), '')
+    .trim()
+  if (!cleaned || cleaned.toLowerCase() === SITE_NAME.toLowerCase()) return SITE_NAME
+  return `${cleaned} — ${SITE_NAME}`
+}
 
 function setMeta(property: string, content: string) {
   let el = document.querySelector(`meta[property="${property}"], meta[name="${property}"]`) as HTMLMetaElement | null
@@ -57,17 +76,25 @@ export default function SEO({ title, description, image, type = 'website', artic
   const location = useLocation()
 
   useEffect(() => {
-    const pageTitle = title ? `${title} — ${SITE_NAME}` : `${SITE_NAME} — ${DEFAULT_DESC}`
+    const baseUrl = resolveBaseUrl()
+    const pageTitle = buildDocumentTitle(title)
     const pageDesc = description || DEFAULT_DESC
-    const pageUrl = `${BASE_URL}${location.pathname}`
-    const pageImage = image || `${BASE_URL}/og-default.jpg`
+    const pageUrl = `${baseUrl}${location.pathname}`
+    const pageImage = image
+      ? image.startsWith('http')
+        ? image
+        : `${baseUrl}${image.startsWith('/') ? '' : '/'}${image}`
+      : `${PRODUCTION_BASE}/og-default.jpg`
 
     document.title = pageTitle
 
     setMeta('description', pageDesc)
     setMeta('robots', 'index, follow')
 
-    setMeta('og:title', title || SITE_NAME)
+    const ogTitle = title
+      ? title.replace(new RegExp(`\\s*[|—–-]\\s*${SITE_NAME}\\s*$`, 'i'), '').trim() || SITE_NAME
+      : SITE_NAME
+    setMeta('og:title', ogTitle)
     setMeta('og:description', pageDesc)
     setMeta('og:url', pageUrl)
     setMeta('og:image', pageImage)
@@ -76,7 +103,7 @@ export default function SEO({ title, description, image, type = 'website', artic
     setMeta('og:locale', 'en_US')
 
     setMeta('twitter:card', image ? 'summary_large_image' : 'summary')
-    setMeta('twitter:title', title || SITE_NAME)
+    setMeta('twitter:title', ogTitle)
     setMeta('twitter:description', pageDesc)
     setMeta('twitter:image', pageImage)
 
@@ -92,7 +119,7 @@ export default function SEO({ title, description, image, type = 'website', artic
       ? {
           '@context': 'https://schema.org',
           '@type': 'NewsArticle',
-          headline: title,
+          headline: ogTitle,
           description: pageDesc,
           image: pageImage,
           url: pageUrl,
@@ -101,7 +128,7 @@ export default function SEO({ title, description, image, type = 'website', artic
           publisher: {
             '@type': 'Organization',
             name: SITE_NAME,
-            url: BASE_URL,
+            url: PRODUCTION_BASE,
           },
         }
       : {
@@ -109,7 +136,7 @@ export default function SEO({ title, description, image, type = 'website', artic
           '@type': 'WebSite',
           name: SITE_NAME,
           description: pageDesc,
-          url: BASE_URL,
+          url: baseUrl,
         }
 
     setJsonLd(jsonLd)

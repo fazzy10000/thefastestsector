@@ -1,5 +1,6 @@
 import { handleApi } from './api'
 import type { Env } from './env'
+import { syncSchedule } from './schedule/sync'
 
 const RESERVED_SLUGS = new Set([
   'article',
@@ -17,6 +18,7 @@ const RESERVED_SLUGS = new Set([
   'editorial-policy',
   'corrections-policy',
   'terms',
+  'unsubscribe',
   'sector-sweep',
   'interactive',
   'games',
@@ -68,6 +70,14 @@ function resolveLegacyRedirect(pathname: string): string | null {
 }
 
 export default {
+  async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      syncSchedule(env.DB).catch((err) => {
+        console.error('schedule sync failed', err)
+      }),
+    )
+  },
+
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
 

@@ -105,12 +105,24 @@ CREATE TABLE IF NOT EXISTS newsletters (
   created_by TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS newsletter_templates (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT NOT NULL DEFAULT '',
+  subject TEXT NOT NULL DEFAULT '',
+  preview_text TEXT NOT NULL DEFAULT '',
+  content TEXT NOT NULL DEFAULT '',
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL,
+  created_by TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS newsletter_subscribers (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,
   source TEXT NOT NULL DEFAULT 'footer',
   edition TEXT NOT NULL DEFAULT 'all',
-  status TEXT NOT NULL DEFAULT 'new',
+  status TEXT NOT NULL DEFAULT 'active',
   created_at INTEGER NOT NULL
 );
 
@@ -183,4 +195,12 @@ CREATE TABLE IF NOT EXISTS seo_overrides (
   meta_description TEXT NOT NULL DEFAULT '',
   focus_keyphrase TEXT NOT NULL DEFAULT '',
   no_index INTEGER NOT NULL DEFAULT 0
+);
+
+-- Last-good race calendar snapshot (Worker cron + /api/schedule)
+CREATE TABLE IF NOT EXISTS schedule_snapshot (
+  id TEXT PRIMARY KEY,
+  events_json TEXT NOT NULL DEFAULT '[]',
+  sources_json TEXT NOT NULL DEFAULT '{}',
+  synced_at INTEGER NOT NULL
 );

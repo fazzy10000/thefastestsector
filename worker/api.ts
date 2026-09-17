@@ -11,8 +11,12 @@ import {
 } from './auth'
 import { id, json, parseJson, parseJsonArray, parseJsonValue } from './http'
 import { sendViaResend } from '../src/lib/resendSend'
+import { verifyUnsubscribeToken } from '../src/lib/unsubscribeToken'
 import { DEFAULT_SEO_SETTINGS, DEFAULT_SETTINGS } from '../src/lib/types'
 import { mergeSettings } from '../src/lib/mergeSettings'
+import { normalizeCategory } from '../src/lib/normalizeCategory'
+import { ensureScheduleTable, readScheduleSnapshot, syncSchedule } from './schedule/sync'
+import { sortEventsChronologically, withStatus } from './schedule/status'
 
 type ArticleRow = {
   id: string
@@ -44,7 +48,7 @@ function mapArticle(row: ArticleRow) {
     excerpt: row.excerpt,
     content: rewriteMediaUrls(row.content),
     featuredImage: rewriteMediaUrls(row.featured_image),
-    category: row.category,
+    category: normalizeCategory(row.category, row.title, row.slug),
     contentType: row.content_type,
     tags: parseJsonArray(row.tags_json),
     author: row.author,
@@ -124,6 +128,17 @@ async function ensureStatsAdsTables(env: Env) {
       updated_at INTEGER NOT NULL
     )`),
     env.DB.prepare(`CREATE INDEX IF NOT EXISTS idx_ads_placement ON ads(placement, active)`),
+    env.DB.prepare(`CREATE TABLE IF NOT EXISTS newsletter_templates (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      subject TEXT NOT NULL DEFAULT '',
+      preview_text TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL DEFAULT '',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      created_by TEXT NOT NULL DEFAULT ''
+    )`),
   ])
   // Columns added after the table first shipped — safe no-ops when they already exist
   try {
@@ -200,6 +215,40 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
   try {
     await ensureArticleEditorColumns(env)
     await ensureStatsAdsTables(env)
+    await ensureScheduleTable(env.DB)
+
+    // --- Public race calendar (D1 snapshot; Worker cron refreshes weekly) ---
+    if (path === '/api/schedule' && method === 'GET') {
+      const snapshot = await readScheduleSnapshot(env.DB)
+      // Lazy first sync when the snapshot is empty (local/dev or fresh D1)
+      if (snapshot.events.length === 0) {
+        const synced = await syncSchedule(env.DB)
+        return json({
+          events: withStatus(synced.events),
+          syncedAt: synced.syncedAt,
+          sources: synced.sources,
+        })
+      }
+      return json({
+        events: withStatus(sortEventsChronologically(snapshot.events)),
+        syncedAt: snapshot.syncedAt,
+        sources: snapshot.sources,
+      })
+    }
+
+    if (path === '/api/schedule/refresh' && method === 'POST') {
+      const auth = await requireUser(request, env, 'manage_settings')
+      if ('error' in auth) return auth.error
+      if (auth.user.role !== 'admin') return json({ error: 'Forbidden' }, { status: 403 })
+      const synced = await syncSchedule(env.DB)
+      return json({
+        ok: true,
+        changed: synced.changed,
+        events: withStatus(synced.events),
+        syncedAt: synced.syncedAt,
+        sources: synced.sources,
+      })
+    }
 
     // --- Auth ---
     if (path === '/api/auth/login' && method === 'POST') {
@@ -348,6 +397,8 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
         html: body?.html ?? '',
         previewText: body?.previewText,
         emails: body?.emails ?? [],
+        secret: env.SESSION_SECRET,
+        siteOrigin: 'https://thefastestsector.com',
       })
       if ('error' in result) return json({ error: result.error }, { status: result.status })
       return json({ sent: result.sent })
@@ -386,18 +437,69 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
       const body = await parseJson<{ email?: string; source?: string; edition?: string }>(request)
       const email = body?.email?.trim().toLowerCase() || ''
       if (!email || !email.includes('@')) return json({ error: 'Valid email required' }, { status: 400 })
-      const existing = await env.DB.prepare('SELECT id FROM newsletter_subscribers WHERE email = ?')
+      const existing = await env.DB.prepare(
+        'SELECT id, status FROM newsletter_subscribers WHERE email = ?',
+      )
         .bind(email)
-        .first()
+        .first<{ id: string; status: string }>()
       if (!existing) {
         await env.DB.prepare(
           `INSERT INTO newsletter_subscribers (id, email, source, edition, status, created_at)
-           VALUES (?, ?, ?, ?, 'new', ?)`,
+           VALUES (?, ?, ?, ?, 'active', ?)`,
         )
           .bind(id(), email, body?.source || 'footer', body?.edition || 'all', Date.now())
           .run()
+      } else if (existing.status === 'unsubscribed') {
+        // Re-subscribe after an unsubscribe
+        await env.DB.prepare(
+          `UPDATE newsletter_subscribers SET status = 'active', source = ?, edition = ? WHERE id = ?`,
+        )
+          .bind(body?.source || 'footer', body?.edition || 'all', existing.id)
+          .run()
       }
       return json({ ok: true })
+    }
+
+    // One-click / signed-link unsubscribe (public)
+    if (path === '/api/newsletter/unsubscribe' && (method === 'GET' || method === 'POST')) {
+      let email = ''
+      let token = ''
+      if (method === 'GET') {
+        email = (url.searchParams.get('e') || url.searchParams.get('email') || '').trim().toLowerCase()
+        token = (url.searchParams.get('t') || url.searchParams.get('token') || '').trim()
+      } else {
+        const ct = request.headers.get('content-type') || ''
+        if (ct.includes('application/json')) {
+          const body = await parseJson<{ email?: string; e?: string; token?: string; t?: string }>(request)
+          email = (body?.email || body?.e || '').trim().toLowerCase()
+          token = (body?.token || body?.t || '').trim()
+        } else {
+          const raw = await request.text()
+          const params = new URLSearchParams(raw)
+          email = (params.get('e') || params.get('email') || '').trim().toLowerCase()
+          token = (params.get('t') || params.get('token') || '').trim()
+        }
+      }
+      if (!email || !email.includes('@') || !token) {
+        return json({ error: 'Invalid unsubscribe link' }, { status: 400 })
+      }
+      if (!env.SESSION_SECRET) {
+        return json({ error: 'Unsubscribe is not configured' }, { status: 503 })
+      }
+      const ok = await verifyUnsubscribeToken(email, token, env.SESSION_SECRET)
+      if (!ok) return json({ error: 'Invalid or expired unsubscribe link' }, { status: 403 })
+
+      const row = await env.DB.prepare('SELECT id, status FROM newsletter_subscribers WHERE email = ?')
+        .bind(email)
+        .first<{ id: string; status: string }>()
+      if (row && row.status !== 'unsubscribed') {
+        await env.DB.prepare(
+          `UPDATE newsletter_subscribers SET status = 'unsubscribed' WHERE id = ?`,
+        )
+          .bind(row.id)
+          .run()
+      }
+      return json({ ok: true, email, status: 'unsubscribed' })
     }
 
     if (path === '/api/join' && method === 'POST') {
@@ -592,7 +694,9 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
              FROM articles WHERE status = 'published' AND published_at IS NOT NULL
              GROUP BY month ORDER BY month DESC LIMIT 12`,
           ).all<{ month: string; posts: number }>(),
-          env.DB.prepare(`SELECT COUNT(*) AS count FROM newsletter_subscribers`).first<{
+          env.DB.prepare(
+            `SELECT COUNT(*) AS count FROM newsletter_subscribers WHERE status != 'unsubscribed'`,
+          ).first<{
             count: number
           }>(),
           env.DB.prepare(`SELECT MIN(created_at) AS first FROM page_views`).first<{
@@ -745,8 +849,15 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
         binds.push(status)
       }
       if (category) {
-        clauses.push('category = ?')
-        binds.push(category)
+        if (category === 'f1-academy') {
+          clauses.push(
+            `(category = ? OR (category = 'other' AND (LOWER(title) LIKE '%f1 academy%' OR LOWER(slug) LIKE '%f1-academy%')))`,
+          )
+          binds.push(category)
+        } else {
+          clauses.push('category = ?')
+          binds.push(category)
+        }
       }
       if (authorId) {
         clauses.push('author_id = ?')
@@ -1433,6 +1544,124 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
     }
 
     // --- Newsletters ---
+    if (path === '/api/newsletter-templates' && method === 'GET') {
+      const auth = await requireUser(request, env, 'manage_newsletter')
+      if ('error' in auth) return auth.error
+      const { results } = await env.DB.prepare(
+        'SELECT * FROM newsletter_templates ORDER BY updated_at DESC',
+      ).all<{
+        id: string
+        name: string
+        description: string
+        subject: string
+        preview_text: string
+        content: string
+        created_at: number
+        updated_at: number
+        created_by: string
+      }>()
+      return json({
+        templates: (results || []).map((t) => ({
+          id: t.id,
+          name: t.name,
+          description: t.description,
+          subject: t.subject,
+          previewText: t.preview_text,
+          html: rewriteMediaUrls(t.content),
+          createdAt: t.created_at,
+          updatedAt: t.updated_at,
+          createdBy: t.created_by,
+          custom: true as const,
+        })),
+      })
+    }
+
+    if (path === '/api/newsletter-templates' && method === 'POST') {
+      const auth = await requireUser(request, env, 'manage_newsletter')
+      if ('error' in auth) return auth.error
+      const body = await parseJson<{
+        name?: string
+        description?: string
+        subject?: string
+        previewText?: string
+        html?: string
+        content?: string
+      }>(request)
+      const name = body?.name?.trim() || ''
+      if (!name) return json({ error: 'Template name required' }, { status: 400 })
+      const content = String(body?.html ?? body?.content ?? '')
+      const templateId = id()
+      const now = Date.now()
+      await env.DB.prepare(
+        `INSERT INTO newsletter_templates
+         (id, name, description, subject, preview_text, content, created_at, updated_at, created_by)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+        .bind(
+          templateId,
+          name,
+          body?.description?.trim() || '',
+          body?.subject?.trim() || '',
+          body?.previewText?.trim() || '',
+          content,
+          now,
+          now,
+          auth.user.id,
+        )
+        .run()
+      return json({ id: templateId })
+    }
+
+    const templateMatch = path.match(/^\/api\/newsletter-templates\/([^/]+)$/)
+    if (templateMatch) {
+      const templateId = templateMatch[1]
+      if (method === 'PATCH') {
+        const auth = await requireUser(request, env, 'manage_newsletter')
+        if ('error' in auth) return auth.error
+        const existing = await env.DB.prepare('SELECT * FROM newsletter_templates WHERE id = ?')
+          .bind(templateId)
+          .first<{ id: string }>()
+        if (!existing) return json({ error: 'Not found' }, { status: 404 })
+        const body = await parseJson<{
+          name?: string
+          description?: string
+          subject?: string
+          previewText?: string
+          html?: string
+          content?: string
+        }>(request)
+        const name = body?.name?.trim()
+        if (name !== undefined && !name) return json({ error: 'Template name required' }, { status: 400 })
+        await env.DB.prepare(
+          `UPDATE newsletter_templates SET
+            name = COALESCE(?, name),
+            description = COALESCE(?, description),
+            subject = COALESCE(?, subject),
+            preview_text = COALESCE(?, preview_text),
+            content = COALESCE(?, content),
+            updated_at = ?
+           WHERE id = ?`,
+        )
+          .bind(
+            name ?? null,
+            body?.description !== undefined ? body.description.trim() : null,
+            body?.subject !== undefined ? body.subject.trim() : null,
+            body?.previewText !== undefined ? body.previewText.trim() : null,
+            body?.html !== undefined ? body.html : body?.content !== undefined ? body.content : null,
+            Date.now(),
+            templateId,
+          )
+          .run()
+        return json({ ok: true })
+      }
+      if (method === 'DELETE') {
+        const auth = await requireUser(request, env, 'manage_newsletter')
+        if ('error' in auth) return auth.error
+        await env.DB.prepare('DELETE FROM newsletter_templates WHERE id = ?').bind(templateId).run()
+        return json({ ok: true })
+      }
+    }
+
     if (path === '/api/newsletters' && method === 'GET') {
       const auth = await requireUser(request, env, 'manage_newsletter')
       if ('error' in auth) return auth.error

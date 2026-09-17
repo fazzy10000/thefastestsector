@@ -37,9 +37,10 @@ import GamesPage from './pages/GamesPage'
 import Join from './pages/Join'
 import Privacy from './pages/Privacy'
 import Policies from './pages/Policies'
-import Terms from './pages/Terms'
+import Unsubscribe from './pages/Unsubscribe'
 import EditorialPolicy from './pages/EditorialPolicy'
 import CorrectionsPolicy from './pages/CorrectionsPolicy'
+import Terms from './pages/Terms'
 import AuthorPage from './pages/AuthorPage'
 
 export default function App() {
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="/editorial-policy" element={<EditorialPolicy />} />
           <Route path="/corrections-policy" element={<CorrectionsPolicy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/sector-sweep" element={<SectorSweep />} />
           <Route path="/interactive" element={<InteractivePage />} />
           <Route path="/interactive/:section" element={<InteractivePage />} />

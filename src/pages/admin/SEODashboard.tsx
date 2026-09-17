@@ -14,9 +14,11 @@ import {
   ListChecks,
   Globe,
   FolderOpen,
+  HelpCircle,
 } from 'lucide-react'
 import MediaPicker from '../../components/admin/MediaPicker'
 import Pagination from '../../components/Pagination'
+import { ADMIN_TOUR_EVENT } from '../../components/admin/adminTourSteps'
 
 const SEO_PAGE_SIZE = 20
 
@@ -210,7 +212,7 @@ export default function SEODashboard() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3" data-tour="seo-header">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
             <Globe className="w-7 h-7 text-primary" />
@@ -218,19 +220,31 @@ export default function SEODashboard() {
           </h1>
           <p className="text-gray-500 text-sm mt-1">Site-wide settings, article metadata, and health checks</p>
         </div>
-        <button
-          type="button"
-          onClick={handleSaveGlobal}
-          disabled={saving}
-          className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium disabled:opacity-50"
-        >
-          {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-          {saved ? 'Saved!' : saving ? 'Saving…' : 'Save SEO settings'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() =>
+              window.dispatchEvent(new CustomEvent(ADMIN_TOUR_EVENT, { detail: { focus: 'seo' } }))
+            }
+            className="flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <HelpCircle className="w-4 h-4" />
+            Take the SEO tour
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveGlobal}
+            disabled={saving}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors text-sm font-medium disabled:opacity-50"
+          >
+            {saved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            {saved ? 'Saved!' : saving ? 'Saving…' : 'Save SEO settings'}
+          </button>
+        </div>
       </div>
 
       {/* Site-wide */}
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
+      <section className="bg-white rounded-xl border border-gray-200 p-6" data-tour="seo-defaults">
         <h2 className="font-semibold text-gray-900 mb-4">Site-wide SEO settings</h2>
         <div className="grid md:grid-cols-2 gap-5">
           <div className="md:col-span-2">

@@ -1,7 +1,12 @@
 import { wrapNewsletterHtml } from './newsletterHtml'
+import {
+  SITE_ORIGIN,
+  buildUnsubscribeUrl,
+  makeUnsubscribeToken,
+} from './unsubscribeToken'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const BATCH_SIZE = 100
+const BATCH_SIZE = 50
 const MAX_RECIPIENTS = 2000
 
 export function normalizeRecipientEmails(raw: unknown): string[] {
@@ -62,6 +67,30 @@ async function postResend(
   return { ok: false, status: res.status, message }
 }
 
+async function buildEmailPayload(input: {
+  from: string
+  to: string
+  subject: string
+  html: string
+  previewText: string
+  secret: string
+  siteOrigin: string
+}) {
+  const token = await makeUnsubscribeToken(input.to, input.secret)
+  const unsubscribeUrl = buildUnsubscribeUrl(input.siteOrigin, input.to, token)
+  const wrapped = wrapNewsletterHtml(input.html, input.previewText, { unsubscribeUrl })
+  return {
+    from: input.from,
+    to: [input.to],
+    subject: input.subject,
+    html: wrapped,
+    headers: {
+      'List-Unsubscribe': `<${unsubscribeUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    },
+  }
+}
+
 export async function sendViaResend(input: {
   apiKey: string
   from: string
@@ -69,14 +98,22 @@ export async function sendViaResend(input: {
   html: string
   previewText?: string
   emails: unknown
+  /** HMAC secret for per-recipient unsubscribe tokens */
+  secret: string
+  siteOrigin?: string
 }): Promise<{ sent: number } | { error: string; status: number }> {
   const subject = input.subject.trim()
   const html = input.html.trim()
   const emails = normalizeRecipientEmails(input.emails)
   const from = normalizeFromAddress(input.from)
+  const previewText = input.previewText?.trim() ?? ''
+  const siteOrigin = input.siteOrigin || SITE_ORIGIN
 
   if (!subject || !html) {
     return { error: 'Subject and body are required', status: 400 }
+  }
+  if (!input.secret) {
+    return { error: 'SESSION_SECRET is required to generate unsubscribe links', status: 503 }
   }
   if (emails.length === 0) {
     return { error: 'No valid subscriber emails', status: 400 }
@@ -94,15 +131,17 @@ export async function sendViaResend(input: {
     }
   }
 
-  const wrapped = wrapNewsletterHtml(html, input.previewText?.trim() ?? '')
-
   if (emails.length === 1) {
-    const result = await postResend(input.apiKey, '/emails', {
+    const payload = await buildEmailPayload({
       from,
-      to: [emails[0]],
+      to: emails[0],
       subject,
-      html: wrapped,
+      html,
+      previewText,
+      secret: input.secret,
+      siteOrigin,
     })
+    const result = await postResend(input.apiKey, '/emails', payload)
     if (!result.ok) {
       return { error: explainResendError(result.status, result.message, from), status: 502 }
     }
@@ -111,12 +150,20 @@ export async function sendViaResend(input: {
 
   let sent = 0
   for (let i = 0; i < emails.length; i += BATCH_SIZE) {
-    const batch = emails.slice(i, i + BATCH_SIZE).map((to) => ({
-      from,
-      to: [to],
-      subject,
-      html: wrapped,
-    }))
+    const slice = emails.slice(i, i + BATCH_SIZE)
+    const batch = await Promise.all(
+      slice.map((to) =>
+        buildEmailPayload({
+          from,
+          to,
+          subject,
+          html,
+          previewText,
+          secret: input.secret,
+          siteOrigin,
+        }),
+      ),
+    )
     const result = await postResend(input.apiKey, '/emails/batch', batch)
     if (!result.ok) {
       return { error: explainResendError(result.status, result.message, from), status: 502 }

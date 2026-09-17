@@ -220,7 +220,7 @@ export interface RaceEvent {
   countryCode: string
   date: string // ISO date string
   endDate: string
-  series: 'f1' | 'fe' | 'indycar' | 'f1-academy'
+  series: 'f1' | 'f2' | 'f3' | 'fe' | 'indycar' | 'f1-academy'
   round: number
   status: 'upcoming' | 'completed' | 'live'
 }

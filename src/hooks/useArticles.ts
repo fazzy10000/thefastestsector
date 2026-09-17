@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { api } from '../lib/api'
 import type { Article, Category } from '../lib/types'
+import { normalizeCategory } from '../lib/normalizeCategory'
 
 export type ArticleListMeta = {
   total: number
@@ -48,14 +49,18 @@ export function useArticles() {
         limit?: number
         counts?: ArticleListMeta['counts']
       }>(`/api/articles${qs ? `?${qs}` : ''}`)
-      setArticles(data.articles)
+      const normalized = data.articles.map((a) => ({
+        ...a,
+        category: normalizeCategory(a.category, a.title, a.slug),
+      }))
+      setArticles(normalized)
       setMeta({
-        total: data.total ?? data.articles.length,
+        total: data.total ?? normalized.length,
         page: data.page ?? 1,
-        limit: data.limit ?? data.articles.length,
+        limit: data.limit ?? normalized.length,
         counts: data.counts,
       })
-      return data.articles
+      return normalized
     } finally {
       setLoading(false)
     }
@@ -64,7 +69,10 @@ export function useArticles() {
   const getArticle = useCallback(async (id: string): Promise<Article | null> => {
     try {
       const data = await api<{ article: Article }>(`/api/articles/${id}`)
-      return data.article
+      return {
+        ...data.article,
+        category: normalizeCategory(data.article.category, data.article.title, data.article.slug),
+      }
     } catch {
       return null
     }
@@ -73,7 +81,10 @@ export function useArticles() {
   const getArticleBySlug = useCallback(async (slug: string, _includeUnpublished = false): Promise<Article | null> => {
     try {
       const data = await api<{ article: Article }>(`/api/articles/by-slug/${encodeURIComponent(slug)}`)
-      return data.article
+      return {
+        ...data.article,
+        category: normalizeCategory(data.article.category, data.article.title, data.article.slug),
+      }
     } catch {
       return null
     }

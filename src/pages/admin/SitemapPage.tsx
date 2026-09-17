@@ -182,7 +182,7 @@ export default function SitemapPage() {
 
   return (
     <div>
-      <div className="mb-8">
+      <div className="mb-8" data-tour="sitemap-header">
         <h1 className="text-2xl font-bold text-gray-900">Sitemap</h1>
         <p className="text-gray-500 text-sm mt-1">
           Viewing the generated <code>/sitemap.xml</code>. It regenerates on every build (
@@ -205,7 +205,7 @@ export default function SitemapPage() {
       ) : (
         <>
           {/* Summary + search + view toggle */}
-          <div className="bg-white rounded-xl shadow-sm p-5 mb-8">
+          <div className="bg-white rounded-xl shadow-sm p-5 mb-8" data-tour="sitemap-viewer">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 bg-blue-50 rounded-lg">

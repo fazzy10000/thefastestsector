@@ -153,7 +153,7 @@ export default function AdminSettings() {
   }
 
   return (
-    <div>
+    <div data-tour="settings-panel">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Site Settings</h1>

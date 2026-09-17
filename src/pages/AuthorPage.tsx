@@ -7,6 +7,7 @@ import RacingLoader from '../components/RacingLoader'
 import { useAuthors } from '../hooks/useAuthors'
 import { useArticles } from '../hooks/useArticles'
 import type { Author } from '../lib/types'
+import { displayAuthorName } from '../lib/formatAuthor'
 
 const PAGE_SIZE = 12
 
@@ -63,12 +64,12 @@ export default function AuthorPage() {
     )
   }
 
-  const name = author?.name?.replace(/\s*\|\s*.*$/, '').trim() || author?.name || 'Author'
+  const name = displayAuthorName(author?.name || 'Author')
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
       <SEO
-        title={`${name} | The Fastest Sector`}
+        title={name}
         description={author?.bio || `Articles by ${name} on The Fastest Sector.`}
       />
 

@@ -1,23 +1,23 @@
 import { useSettings } from '../hooks/useSettings'
+import { displayAuthorName } from '../lib/formatAuthor'
 import { useAuthors } from '../hooks/useAuthors'
 import SEO from '../components/SEO'
 import RacingLoader from '../components/RacingLoader'
 import SocialIcons from '../components/SocialIcons'
-import { SAMPLE_AUTHORS } from '../lib/sampleAuthors'
 import type { Author } from '../lib/types'
 
 function AuthorCard({ author }: { author: Author }) {
-  const displayName = author.name.replace(/\s*\|\s*.*$/, '').trim() || author.name
+  const name = displayAuthorName(author.name)
 
   return (
     <article className="bg-surface-card dark:bg-white/5 rounded-xl border border-gray-200/80 dark:border-white/10 p-5 flex flex-col items-center text-center">
       <img
         src={author.avatar || '/tfs-logo.png'}
-        alt={displayName}
+        alt={name}
         className="w-20 h-20 rounded-full object-cover mb-4 bg-gray-100 dark:bg-white/10"
       />
       <h3 className="text-base font-bold text-text-primary dark:text-white leading-snug mb-1">
-        {displayName}
+        {name}
       </h3>
       {author.bio ? (
         <p className="text-sm text-text-secondary dark:text-white/60 line-clamp-3 mb-3">{author.bio}</p>
@@ -48,7 +48,7 @@ function AuthorCard({ author }: { author: Author }) {
 export default function About() {
   const { settings } = useSettings()
   const { authors, loading } = useAuthors()
-  const team = authors.length > 0 ? authors : SAMPLE_AUTHORS
+  const team = authors
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-12">

@@ -173,6 +173,33 @@ body {
   border-color: rgb(255 255 255 / 0.12);
 }
 
+/* Solid modal panels — escape the translucent .bg-white dark remap */
+.dark .admin-shell .admin-content .tfs-admin-modal {
+  background-color: #1c1c1e !important;
+  color: rgb(255 255 255 / 0.92) !important;
+}
+
+.dark .admin-shell .admin-content .tfs-admin-modal h2,
+.dark .admin-shell .admin-content .tfs-admin-modal label {
+  color: rgb(255 255 255 / 0.92) !important;
+}
+
+.dark .admin-shell .admin-content .tfs-admin-modal p {
+  color: rgb(255 255 255 / 0.55) !important;
+}
+
+.dark .admin-shell .admin-content .tfs-admin-modal input {
+  background-color: #2c2c2e !important;
+  color: rgb(255 255 255 / 0.92) !important;
+  border-color: rgb(255 255 255 / 0.15) !important;
+}
+
+.dark .admin-shell .admin-content .tfs-admin-modal button:not(.bg-primary) {
+  background-color: #2c2c2e !important;
+  color: rgb(255 255 255 / 0.85) !important;
+  border-color: rgb(255 255 255 / 0.15) !important;
+}
+
 .tiptap {
   outline: none;
   min-height: 300px;

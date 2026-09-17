@@ -11,6 +11,8 @@ import { parseSeriesFilter, type SeriesFilter } from '../lib/scheduleLinks'
 const SERIES_TABS: { id: SeriesFilter; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'f1', label: 'Formula 1' },
+  { id: 'f2', label: 'Formula 2' },
+  { id: 'f3', label: 'Formula 3' },
   { id: 'fe', label: 'Formula E' },
   { id: 'indycar', label: 'IndyCar' },
   { id: 'f1-academy', label: 'F1 Academy' },
@@ -18,6 +20,8 @@ const SERIES_TABS: { id: SeriesFilter; label: string }[] = [
 
 const SERIES_LABEL: Record<RaceEvent['series'], string> = {
   f1: 'Formula 1',
+  f2: 'Formula 2',
+  f3: 'Formula 3',
   fe: 'Formula E',
   indycar: 'IndyCar',
   'f1-academy': 'F1 Academy',
@@ -25,6 +29,8 @@ const SERIES_LABEL: Record<RaceEvent['series'], string> = {
 
 const SERIES_BADGE_CLASS: Record<RaceEvent['series'], string> = {
   f1: 'bg-badge-f1 text-white',
+  f2: 'bg-badge-feeder text-white',
+  f3: 'bg-badge-feeder text-white',
   fe: 'bg-badge-fe text-white',
   indycar: 'bg-badge-indycar text-white',
   'f1-academy': 'bg-badge-f1 text-white',
@@ -86,7 +92,11 @@ export default function SchedulePage() {
 
   const filtered = useMemo(() => {
     const list = series === 'all' ? allEvents : allEvents.filter((e) => e.series === series)
-    return sortEventsChronologically(list)
+    const sorted = sortEventsChronologically(list)
+    const upcoming = sorted.filter((e) => e.status === 'upcoming')
+    const completed = sorted.filter((e) => e.status !== 'upcoming')
+    // Upcoming first so the page opens on what's ahead; completed stay muted below
+    return [...upcoming, ...completed]
   }, [allEvents, series])
 
   const nextId = useMemo(() => findNextUpcomingId(filtered), [filtered])
@@ -95,10 +105,15 @@ export default function SchedulePage() {
     didScroll.current = false
   }, [series])
 
+  // Next race is already at the top after reordering — only scroll if it's off-screen
   useEffect(() => {
     if (!nextId || didScroll.current) return
     const t = window.setTimeout(() => {
-      nextRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      const el = nextRef.current
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const inView = rect.top >= 0 && rect.top < window.innerHeight * 0.7
+      if (!inView) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
       didScroll.current = true
     }, 100)
     return () => window.clearTimeout(t)
@@ -108,7 +123,7 @@ export default function SchedulePage() {
     <div className="max-w-5xl mx-auto px-4 py-8">
       <SEO
         title="Race Schedule"
-        description="2026 motorsport race calendar — Formula 1, Formula E, IndyCar, and F1 Academy. Filter by series and see what is next on track."
+        description="Race calendars for Formula 1, Formula E, IndyCar, and F1 Academy. Filter by series and see what is next on track."
       />
 
       <header className="mb-8">
@@ -116,8 +131,7 @@ export default function SchedulePage() {
           Race Schedule
         </h1>
         <p className="text-text-secondary dark:text-white/50 mt-2 max-w-2xl text-sm sm:text-base leading-relaxed">
-          Key rounds for the 2026 season across Formula 1, Formula E, IndyCar, and F1 Academy.
-          Formula 1 and IndyCar calendars are loaded from live sources; other series use site data.
+          Official calendars for Formula 1, Formula E, IndyCar, and F1 Academy.
           Completed events are muted so you can focus on what is ahead.
         </p>
       </header>

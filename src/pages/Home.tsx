@@ -13,6 +13,7 @@ import { sortEventsChronologically } from '../data/raceSchedule2026'
 import { flagEmojiFromCountryCode } from '../lib/countryFlags'
 import { quizCoverImage } from '../lib/quizCovers'
 import { schedulePath } from '../lib/scheduleLinks'
+import LatestResults from '../components/LatestResults'
 import { formatDistanceToNow, format } from 'date-fns'
 
 const AUTOPLAY_MS = 6000
@@ -37,6 +38,8 @@ function formatDateRange(start: string, end: string): string {
 
 const SERIES_LABELS: Record<string, string> = {
   f1: 'F1',
+  f2: 'F2',
+  f3: 'F3',
   fe: 'FORMULA E',
   indycar: 'INDYCAR',
   'f1-academy': 'F1 ACADEMY',
@@ -44,71 +47,12 @@ const SERIES_LABELS: Record<string, string> = {
 
 const SERIES_BADGE_COLORS: Record<string, string> = {
   f1: 'bg-red-600',
+  f2: 'bg-orange-600',
+  f3: 'bg-orange-500',
   fe: 'bg-sky-500',
   indycar: 'bg-indigo-800',
   'f1-academy': 'bg-red-500',
 }
-
-// Last-race static results for display
-interface RaceResult {
-  series: string
-  badge: string
-  badgeColor: string
-  raceName: string
-  venue: string
-  rows: { pos: number; code: string; team: string; gap: string }[]
-}
-
-const LATEST_RACE_RESULTS: RaceResult[] = [
-  {
-    series: 'F1',
-    badge: 'F1',
-    badgeColor: 'bg-red-600',
-    raceName: 'Spanish Grand Prix',
-    venue: 'Circuit de Barcelona-Catalunya',
-    rows: [
-      { pos: 1, code: 'VER', team: 'Red Bull', gap: 'Winner' },
-      { pos: 2, code: 'NOR', team: 'McLaren', gap: '+2.219s' },
-      { pos: 3, code: 'HAM', team: 'Mercedes', gap: '+17.790s' },
-    ],
-  },
-  {
-    series: 'F2',
-    badge: 'F2',
-    badgeColor: 'bg-blue-600',
-    raceName: 'Feature Race',
-    venue: 'Spain',
-    rows: [
-      { pos: 1, code: 'BEA', team: 'Prema', gap: 'Winner' },
-      { pos: 2, code: 'MAL', team: 'Campos', gap: '+2.1s' },
-      { pos: 3, code: 'FOR', team: 'Invicta', gap: '+4.7s' },
-    ],
-  },
-  {
-    series: 'IndyCar',
-    badge: 'INDYCAR',
-    badgeColor: 'bg-indigo-900',
-    raceName: 'Road America',
-    venue: 'Elkhart Lake, USA',
-    rows: [
-      { pos: 1, code: 'PAL', team: 'Chip Ganassi', gap: 'Winner' },
-      { pos: 2, code: "O'WA", team: 'Arrow McLaren', gap: '+0.8s' },
-      { pos: 3, code: 'BOS', team: 'Andretti', gap: '+3.2s' },
-    ],
-  },
-  {
-    series: 'Formula E',
-    badge: 'FORMULA E',
-    badgeColor: 'bg-sky-600',
-    raceName: 'Berlin E-Prix',
-    venue: 'Tempelhof Airport',
-    rows: [
-      { pos: 1, code: 'DAC', team: 'Porsche', gap: 'Winner' },
-      { pos: 2, code: 'WEH', team: 'Porsche', gap: '+1.4s' },
-      { pos: 3, code: 'EVE', team: 'Jaguar', gap: '+5.6s' },
-    ],
-  },
-]
 
 function SectionHeading({
   title,
@@ -173,21 +117,33 @@ export default function Home() {
   const [paused, setPaused] = useState(false)
 
   useEffect(() => {
-    void fetchArticles({ status: 'published', limit: 12 })
+    void fetchArticles({ status: 'published', limit: 24 })
     void fetchQuizzes({ status: 'published' })
   }, [fetchArticles, fetchQuizzes])
 
   const published = articles.filter((a) => a.status === 'published')
   const heroArticles = published.slice(0, 5)
   const slideCount = heroArticles.length
+  const heroIds = useMemo(
+    () => new Set(published.slice(0, 5).map((a) => a.id)),
+    [published],
+  )
 
-  // Latest news: skip hero articles, take next 4 for editorial section
-  const latestNewsArticles = published.slice(0, 4)
+  // Latest news: skip hero carousel articles
+  const latestNewsArticles = published.filter((a) => !heroIds.has(a.id)).slice(0, 4)
   const featuredNewsArticle = latestNewsArticles[0]
   const compactNewsArticles = latestNewsArticles.slice(1)
 
-  // Featured stories: opinion/editorial content (anything we have)
-  const featuredStories = published.slice(0, 8)
+  // Featured stories: prefer opinion / featured, never repeat hero
+  const featuredStories = useMemo(() => {
+    const preferred = published.filter(
+      (a) => !heroIds.has(a.id) && (a.contentType === 'opinion' || a.featured),
+    )
+    if (preferred.length >= 4) return preferred.slice(0, 4)
+    const used = new Set([...heroIds, ...preferred.map((a) => a.id)])
+    const fillers = published.filter((a) => !used.has(a.id))
+    return [...preferred, ...fillers].slice(0, 4)
+  }, [published, heroIds])
 
   // Quiz of the week
   const weekQuiz = useMemo(
@@ -205,18 +161,53 @@ export default function Home() {
     [schedule],
   )
 
-  const thisWeekend = useMemo(() => {
-    const now = Date.now()
-    const sevenDays = now + 7 * 24 * 60 * 60 * 1000
-    const upcoming = sortEventsChronologically(
+  const supportSeriesLabels = useMemo(() => {
+    if (!upcomingF1) return [] as string[]
+    const start = upcomingF1.date
+    const end = upcomingF1.endDate
+    const labels = sortEventsChronologically(
       schedule.filter((e) => {
+        if (e.series === 'f1' || e.status !== 'upcoming') return false
+        // Same race weekend: date ranges overlap
+        return e.date <= end && e.endDate >= start
+      }),
+    ).map((e) => SERIES_LABELS[e.series] ?? e.series.toUpperCase())
+    return [...new Set(labels)]
+  }, [schedule, upcomingF1])
+
+  const { thisWeekend, weekendHeading } = useMemo(() => {
+    const now = new Date()
+    const day = now.getDay() // 0 Sun … 5 Fri … 6 Sat
+    let friday: Date
+    if (day === 5 || day === 6 || day === 0) {
+      const offset = day === 0 ? -2 : day === 6 ? -1 : 0
+      friday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset)
+    } else {
+      friday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (5 - day))
+    }
+    const sunday = new Date(friday.getFullYear(), friday.getMonth(), friday.getDate() + 2)
+    const weekendStart = friday.getTime()
+    const weekendEnd = sunday.getTime() + 24 * 60 * 60 * 1000 - 1
+
+    const overlapping = sortEventsChronologically(
+      schedule.filter((e) => {
+        if (e.status !== 'upcoming') return false
         const start = new Date(e.date + 'T00:00:00').getTime()
-        return e.status === 'upcoming' && start <= sevenDays
+        const end = new Date(e.endDate + 'T23:59:59').getTime()
+        return start <= weekendEnd && end >= weekendStart
       }),
     )
-    if (upcoming.length > 0) return upcoming
-    // Fallback: next 5 upcoming events across all series
-    return sortEventsChronologically(schedule.filter((e) => e.status === 'upcoming')).slice(0, 5)
+
+    if (overlapping.length > 0) {
+      return { thisWeekend: overlapping, weekendHeading: 'This Weekend in Motorsport' }
+    }
+
+    return {
+      thisWeekend: sortEventsChronologically(
+        schedule.filter((e) => e.status === 'upcoming'),
+      ).slice(0, 5),
+      weekendHeading: 'Coming Up in Motorsport',
+    }
   }, [schedule])
 
   const nextRaceDate = useMemo(
@@ -246,6 +237,7 @@ export default function Home() {
   return (
     <div>
       <SEO />
+      <h1 className="sr-only">The Fastest Sector — Motorsport news and analysis</h1>
 
       {/* ══════════════════════════════════════════
           SECTION 1: 3-Column Hero
@@ -364,13 +356,19 @@ export default function Home() {
                   <p className="text-[10px] uppercase tracking-widest text-white/50 mb-2">
                     Support Series
                   </p>
-                  <div className="flex gap-2">
-                    <span className="text-[11px] font-bold border border-white/20 px-2 py-0.5 rounded text-white/70">
-                      F2
-                    </span>
-                    <span className="text-[11px] font-bold border border-white/20 px-2 py-0.5 rounded text-white/70">
-                      F3
-                    </span>
+                  <div className="flex flex-wrap gap-2">
+                    {supportSeriesLabels.length > 0 ? (
+                      supportSeriesLabels.map((label) => (
+                        <span
+                          key={label}
+                          className="text-[11px] font-bold border border-white/20 px-2 py-0.5 rounded text-white/70"
+                        >
+                          {label}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-[11px] text-white/40">None scheduled</span>
+                    )}
                   </div>
                 </div>
 
@@ -391,7 +389,7 @@ export default function Home() {
           {/* Right: This Weekend in Motorsport */}
           <div className="lg:flex-1 bg-gray-50 dark:bg-surface-darker border-l border-white/5 p-5 flex flex-col">
             <p className="text-[10px] font-bold uppercase tracking-widest text-gray-900 dark:text-white mb-3">
-              This Weekend in Motorsport
+              {weekendHeading}
             </p>
             <div className="flex-1 space-y-0 overflow-y-auto">
               {thisWeekend.length > 0 ? (
@@ -419,7 +417,9 @@ export default function Home() {
                 ))
               ) : (
                 <p className="text-sm text-gray-500 dark:text-white/50">
-                  No events this weekend
+                  {weekendHeading.startsWith('This')
+                    ? 'No events this weekend'
+                    : 'No upcoming events'}
                 </p>
               )}
             </div>
@@ -561,59 +561,9 @@ export default function Home() {
       ══════════════════════════════════════════ */}
       <section className="bg-gray-50 dark:bg-surface-darker py-10">
         <div className="max-w-7xl mx-auto px-4">
-          <SectionHeading title="Latest Results" linkLabel="View All Results" linkTo="/standings" />
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {LATEST_RACE_RESULTS.map((result) => (
-              <div
-                key={result.series}
-                className="bg-white dark:bg-white/5 rounded-xl p-4"
-              >
-                <div className="flex items-center gap-2 mb-3">
-                  <span
-                    className={`${result.badgeColor} text-white text-[10px] font-bold px-2 py-0.5 rounded`}
-                  >
-                    {result.badge}
-                  </span>
-                  <div>
-                    <p className="text-xs font-semibold text-text-primary dark:text-white leading-none">
-                      {result.raceName}
-                    </p>
-                    <p className="text-[10px] text-text-secondary dark:text-white/50">
-                      {result.venue}
-                    </p>
-                  </div>
-                </div>
-                <table className="w-full text-[11px]">
-                  <tbody>
-                    {result.rows.map((row) => (
-                      <tr
-                        key={row.pos}
-                        className="border-b border-gray-100 dark:border-white/5 last:border-0"
-                      >
-                        <td className="py-1.5 pr-1.5 font-bold text-text-secondary dark:text-white/50 w-4">
-                          {row.pos}
-                        </td>
-                        <td className="py-1.5 pr-1.5 font-black text-text-primary dark:text-white">
-                          {row.code}
-                        </td>
-                        <td className="py-1.5 text-text-secondary dark:text-white/60 truncate max-w-[60px]">
-                          {row.team}
-                        </td>
-                        <td className="py-1.5 pl-1 text-right font-medium text-text-primary dark:text-white whitespace-nowrap text-[10px]">
-                          {row.gap}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <Link
-                  to="/standings"
-                  className="block text-center text-[10px] font-bold uppercase tracking-wider text-primary hover:underline mt-3"
-                >
-                  Full Results
-                </Link>
-              </div>
-            ))}
+          <SectionHeading title="Latest Results" linkLabel="View Standings" linkTo="/standings" />
+          <div className="max-w-md bg-white dark:bg-white/5 rounded-xl p-4">
+            <LatestResults series="f1" standingsHref="/standings" />
           </div>
         </div>
       </section>
@@ -626,10 +576,10 @@ export default function Home() {
           <SectionHeading
             title="Featured Stories"
             linkLabel="View All Features"
-            linkTo="/category/formula-1"
+            linkTo="/category/news?tab=features"
           />
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {featuredStories.slice(0, 4).map((article) => {
+            {featuredStories.map((article) => {
               const timeAgo = safeTimeAgo(article.publishedAt ?? article.createdAt)
               return (
                 <Link

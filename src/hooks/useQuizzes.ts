@@ -1,9 +1,5 @@
 import { useState, useCallback } from 'react'
 import { api } from '../lib/api'
-import {
-  findSampleQuizBySlug,
-  mergeQuizzesWithFallback,
-} from '../lib/quizFallback'
 import type { Quiz } from '../lib/types'
 
 export function useQuizzes() {
@@ -15,13 +11,14 @@ export function useQuizzes() {
     try {
       const qs = opts?.status ? `?status=${opts.status}` : ''
       const data = await api<{ quizzes: Quiz[] }>(`/api/quizzes${qs}`)
-      const merged = mergeQuizzesWithFallback(data.quizzes, opts?.status)
-      setQuizzes(merged)
-      return merged
+      const list = opts?.status
+        ? data.quizzes.filter((q) => q.status === opts.status)
+        : data.quizzes
+      setQuizzes(list)
+      return list
     } catch {
-      const fallback = mergeQuizzesWithFallback([], opts?.status)
-      setQuizzes(fallback)
-      return fallback
+      setQuizzes([])
+      return []
     } finally {
       setLoading(false)
     }
@@ -41,9 +38,9 @@ export function useQuizzes() {
       const data = await api<{ quiz: Quiz }>(`/api/quizzes/by-slug/${encodeURIComponent(slug)}`)
       if (data.quiz?.status === 'published') return data.quiz
     } catch {
-      // fall through to bundled samples
+      // published quiz not found
     }
-    return findSampleQuizBySlug(slug)
+    return null
   }, [])
 
   const createQuiz = useCallback(async (data: Omit<Quiz, 'id'>) => {

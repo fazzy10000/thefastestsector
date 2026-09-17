@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchF1Standings } from '../lib/standingsApi'
+import { fetchF1LastRaceResults } from '../lib/standingsApi'
 
 interface ResultRow {
   position: number
@@ -18,69 +18,6 @@ interface SeriesResult {
   rows: ResultRow[]
 }
 
-const STATIC_RESULTS: Record<string, SeriesResult> = {
-  f2: {
-    series: 'F2',
-    badge: 'F2',
-    badgeColor: 'bg-blue-600',
-    raceName: 'Feature Race',
-    venue: 'Spain',
-    rows: [
-      { position: 1, code: 'BEA', team: 'Prema', gap: 'Winner' },
-      { position: 2, code: 'MAL', team: 'Campos', gap: '+2.1s' },
-      { position: 3, code: 'FOR', team: 'Invicta', gap: '+4.7s' },
-    ],
-  },
-  f3: {
-    series: 'F3',
-    badge: 'F3',
-    badgeColor: 'bg-sky-700',
-    raceName: 'Feature Race',
-    venue: 'Spain',
-    rows: [
-      { position: 1, code: 'CAM', team: 'Trident', gap: 'Winner' },
-      { position: 2, code: 'TSO', team: 'ART', gap: '+1.8s' },
-      { position: 3, code: 'TAP', team: 'ART', gap: '+3.4s' },
-    ],
-  },
-  'f1-academy': {
-    series: 'F1 Academy',
-    badge: 'F1A',
-    badgeColor: 'bg-pink-600',
-    raceName: 'Feature Race',
-    venue: 'Miami',
-    rows: [
-      { position: 1, code: 'PIN', team: 'Prema', gap: 'Winner' },
-      { position: 2, code: 'PUL', team: 'Rodin', gap: '+2.4s' },
-      { position: 3, code: 'ALQ', team: 'Prema', gap: '+5.1s' },
-    ],
-  },
-  indycar: {
-    series: 'IndyCar',
-    badge: 'INDYCAR',
-    badgeColor: 'bg-indigo-900',
-    raceName: 'Road America',
-    venue: 'Elkhart Lake, USA',
-    rows: [
-      { position: 1, code: 'PAL', team: 'Chip Ganassi', gap: 'Winner' },
-      { position: 2, code: "O'WA", team: 'Arrow McLaren', gap: '+0.8s' },
-      { position: 3, code: 'BOS', team: 'Andretti', gap: '+3.2s' },
-    ],
-  },
-  fe: {
-    series: 'Formula E',
-    badge: 'FORMULA E',
-    badgeColor: 'bg-sky-600',
-    raceName: 'Berlin E-Prix',
-    venue: 'Tempelhof Airport',
-    rows: [
-      { position: 1, code: 'DAC', team: 'Porsche', gap: 'Winner' },
-      { position: 2, code: 'WEH', team: 'Porsche', gap: '+1.4s' },
-      { position: 3, code: 'EVE', team: 'Jaguar', gap: '+5.6s' },
-    ],
-  },
-}
-
 interface Props {
   series: 'f1' | 'f2' | 'f3' | 'indycar' | 'fe' | 'f1-academy'
   compact?: boolean
@@ -88,47 +25,54 @@ interface Props {
 }
 
 export default function LatestResults({ series, compact = false, standingsHref = '/standings' }: Props) {
-  const [f1Result, setF1Result] = useState<SeriesResult | null>(null)
-  const [f1Loading, setF1Loading] = useState(series === 'f1')
+  const [result, setResult] = useState<SeriesResult | null>(null)
+  const [loading, setLoading] = useState(series === 'f1')
+  const [unavailable, setUnavailable] = useState(series !== 'f1')
 
   useEffect(() => {
-    if (series !== 'f1') return
-    fetchF1Standings()
+    if (series !== 'f1') {
+      setResult(null)
+      setUnavailable(true)
+      setLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setLoading(true)
+    fetchF1LastRaceResults()
       .then((data) => {
-        setF1Result({
+        if (cancelled) return
+        setResult({
           series: 'Formula 1',
           badge: 'F1',
           badgeColor: 'bg-red-600',
-          raceName: 'Spanish Grand Prix',
-          venue: 'Circuit de Barcelona-Catalunya',
-          rows: data.drivers.slice(0, 3).map((d) => ({
-            position: d.position,
-            code: d.code || d.name.split(' ').pop()?.slice(0, 3).toUpperCase() || '???',
-            team: d.team,
-            gap: d.position === 1 ? 'Winner' : `${d.points} pts`,
+          raceName: data.raceName,
+          venue: data.circuit || data.location,
+          rows: data.rows.map((row) => ({
+            position: row.position,
+            code: row.code,
+            team: row.team,
+            gap: row.gap,
           })),
         })
+        setUnavailable(false)
       })
       .catch(() => {
-        setF1Result({
-          series: 'Formula 1',
-          badge: 'F1',
-          badgeColor: 'bg-red-600',
-          raceName: 'Spanish Grand Prix',
-          venue: 'Circuit de Barcelona-Catalunya',
-          rows: [
-            { position: 1, code: 'VER', team: 'Red Bull', gap: 'Winner' },
-            { position: 2, code: 'NOR', team: 'McLaren', gap: '+2.2s' },
-            { position: 3, code: 'HAM', team: 'Mercedes', gap: '+17.8s' },
-          ],
-        })
+        if (!cancelled) {
+          setResult(null)
+          setUnavailable(true)
+        }
       })
-      .finally(() => setF1Loading(false))
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
   }, [series])
 
-  const data = series === 'f1' ? f1Result : STATIC_RESULTS[series]
-
-  if (series === 'f1' && f1Loading) {
+  if (series === 'f1' && loading) {
     return (
       <div className="animate-pulse space-y-2">
         {[1, 2, 3].map((i) => (
@@ -138,24 +82,30 @@ export default function LatestResults({ series, compact = false, standingsHref =
     )
   }
 
-  if (!data) return null
+  if (unavailable || !result) {
+    return (
+      <p className="text-xs text-text-secondary dark:text-white/50 py-2">
+        Live results for this series are not available yet.
+      </p>
+    )
+  }
 
   return (
     <div>
       {!compact && (
         <div className="flex items-center gap-2 mb-2">
-          <span className={`${data.badgeColor} text-white text-[10px] font-bold px-2 py-0.5 rounded`}>
-            {data.badge}
+          <span className={`${result.badgeColor} text-white text-[10px] font-bold px-2 py-0.5 rounded`}>
+            {result.badge}
           </span>
           <div>
-            <p className="text-xs font-semibold text-text-primary dark:text-white">{data.raceName}</p>
-            <p className="text-[11px] text-text-secondary dark:text-white/50">{data.venue}</p>
+            <p className="text-xs font-semibold text-text-primary dark:text-white">{result.raceName}</p>
+            <p className="text-[11px] text-text-secondary dark:text-white/50">{result.venue}</p>
           </div>
         </div>
       )}
       <table className="w-full text-xs">
         <tbody>
-          {data.rows.map((row) => (
+          {result.rows.map((row) => (
             <tr key={row.position} className="border-b border-gray-100 dark:border-white/5">
               <td className="py-1.5 pr-2 font-bold text-text-secondary dark:text-white/50 w-5">
                 {row.position}
@@ -175,7 +125,7 @@ export default function LatestResults({ series, compact = false, standingsHref =
         to={standingsHref}
         className="block text-center text-[11px] font-bold uppercase tracking-wider text-primary hover:underline mt-2"
       >
-        Full Results
+        Full Standings
       </Link>
     </div>
   )

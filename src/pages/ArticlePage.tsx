@@ -4,7 +4,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { AlertTriangle, Clock, Share2, Copy, ChevronRight } from 'lucide-react'
 import { useArticles } from '../hooks/useArticles'
 import { useAuth } from '../hooks/useAuth'
-import { fetchF1Standings, getF2Standings, getF3Standings, getF1AcademyStandings, getFormulaEStandings, getIndyCarStandings } from '../lib/standingsApi'
+import { fetchF1Standings } from '../lib/standingsApi'
 import { useRaceSchedule } from '../hooks/useRaceSchedule'
 import { sortEventsChronologically } from '../data/raceSchedule2026'
 import { flagEmojiFromCountryCode } from '../lib/countryFlags'
@@ -19,6 +19,7 @@ import LatestResults from '../components/LatestResults'
 import RaceCountdown from '../components/RaceCountdown'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/types'
 import type { Article } from '../lib/types'
+import { displayAuthorName } from '../lib/formatAuthor'
 
 interface StandingsRow {
   position: number
@@ -161,29 +162,12 @@ export default function ArticlePage() {
 
     async function loadStandings() {
       try {
-        let data
-        switch (ctx.standingsId) {
-          case 'formula-1':
-            data = await fetchF1Standings()
-            break
-          case 'f2':
-            data = getF2Standings()
-            break
-          case 'f3':
-            data = getF3Standings()
-            break
-          case 'f1-academy':
-            data = getF1AcademyStandings()
-            break
-          case 'formula-e':
-            data = getFormulaEStandings()
-            break
-          case 'indycar':
-            data = getIndyCarStandings()
-            break
-          default:
-            return
+        if (ctx.standingsId !== 'formula-1') {
+          setStandingsDrivers([])
+          setStandingsConstructors([])
+          return
         }
+        const data = await fetchF1Standings()
         setStandingsDrivers(
           data.drivers.slice(0, 5).map((d) => ({
             position: d.position,
@@ -266,7 +250,7 @@ export default function ArticlePage() {
         image={article.featuredImage}
         type="article"
         article={{
-          author: article.author,
+          author: displayAuthorName(article.author),
           publishedTime: article.publishedAt ? new Date(article.publishedAt).toISOString() : undefined,
           tags: article.tags,
         }}
@@ -308,10 +292,12 @@ export default function ArticlePage() {
           {/* Author + meta row */}
           <div className="flex items-center gap-3 mb-4">
             <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-sm font-black flex-none">
-              {article.author.charAt(0).toUpperCase()}
+              {displayAuthorName(article.author).charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="text-sm font-bold text-text-primary dark:text-white">{article.author}</p>
+              <p className="text-sm font-bold text-text-primary dark:text-white">
+                {displayAuthorName(article.author)}
+              </p>
               <div className="flex items-center gap-2 text-xs text-text-secondary dark:text-white/50">
                 {timeAgo && <span>{timeAgo}</span>}
                 <span>·</span>
@@ -368,9 +354,9 @@ export default function ArticlePage() {
         {/* Sidebar */}
         <aside className="space-y-5 lg:sticky lg:top-28 lg:self-start">
           <AdSlot placement="article-sidebar" />
-          {seriesCtx && (
+          {seriesCtx?.resultsSeries === 'f1' && (
             <SidebarSection title="Latest Results">
-              <LatestResults series={seriesCtx.resultsSeries} />
+              <LatestResults series="f1" standingsHref="/standings" />
             </SidebarSection>
           )}
 

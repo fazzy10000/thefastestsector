@@ -2,7 +2,7 @@ import type { RaceEvent } from './types'
 
 export type SeriesFilter = 'all' | RaceEvent['series']
 
-const VALID_SERIES = new Set<RaceEvent['series']>(['f1', 'fe', 'indycar', 'f1-academy'])
+const VALID_SERIES = new Set<RaceEvent['series']>(['f1', 'f2', 'f3', 'fe', 'indycar', 'f1-academy'])
 
 export function schedulePath(series?: RaceEvent['series'] | null): string {
   if (!series) return '/schedule'

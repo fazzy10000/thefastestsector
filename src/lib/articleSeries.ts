@@ -16,7 +16,7 @@ export function articleSeriesContext(category: Category): ArticleSeriesContext {
     case 'formula-1':
       return { resultsSeries: 'f1', scheduleSeries: 'f1', standingsId: 'formula-1', label: 'F1' }
     case 'feeder-series':
-      return { resultsSeries: 'f2', scheduleSeries: 'f1-academy', standingsId: 'f2', label: 'F2' }
+      return { resultsSeries: 'f2', scheduleSeries: 'f2', standingsId: 'f2', label: 'F2' }
     case 'f1-academy':
       return { resultsSeries: 'f1-academy', scheduleSeries: 'f1-academy', standingsId: 'f1-academy', label: 'F1 Academy' }
     case 'formula-e':

@@ -1,16 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Trophy, Users, RefreshCw, Wifi, WifiOff } from 'lucide-react'
 import SEO from '../components/SEO'
-import {
-  fetchF1Standings,
-  getFormulaEStandings,
-  getIndyCarStandings,
-  getF2Standings,
-  getF3Standings,
-  getF1AcademyStandings,
-  getTeamColor,
-} from '../lib/standingsApi'
+import { fetchF1Standings, getTeamColor } from '../lib/standingsApi'
 import type { StandingsData, DriverRow, ConstructorRow } from '../lib/standingsApi'
+import { parseStandingsSeries, type StandingsSeriesId } from '../lib/standingsLinks'
 
 const CATEGORIES = [
   { id: 'formula-1', label: 'F1', live: true },
@@ -21,15 +15,18 @@ const CATEGORIES = [
   { id: 'indycar', label: 'IndyCar', live: false },
 ] as const
 
-type CategoryId = (typeof CATEGORIES)[number]['id']
+type CategoryId = StandingsSeriesId
 
 const REFRESH_INTERVAL = 60_000
 
 export default function StandingsPage() {
-  const [category, setCategory] = useState<CategoryId>('formula-1')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [category, setCategory] = useState<CategoryId>(() => parseStandingsSeries(searchParams.get('series')))
   const [tab, setTab] = useState<'drivers' | 'constructors'>('drivers')
   const [data, setData] = useState<StandingsData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(
+    () => parseStandingsSeries(searchParams.get('series')) === 'formula-1',
+  )
   const [error, setError] = useState<string | null>(null)
   const [lastRefresh, setLastRefresh] = useState<number>(0)
   const [isLive, setIsLive] = useState(true)
@@ -37,56 +34,66 @@ export default function StandingsPage() {
 
   const catMeta = CATEGORIES.find((c) => c.id === category)!
 
+  useEffect(() => {
+    setCategory(parseStandingsSeries(searchParams.get('series')))
+  }, [searchParams])
+
+  const handleCategoryChange = (next: CategoryId) => {
+    setCategory(next)
+    if (next === 'formula-1') {
+      const params = new URLSearchParams(searchParams)
+      params.delete('series')
+      setSearchParams(params, { replace: true })
+    } else {
+      setSearchParams({ series: next }, { replace: true })
+    }
+  }
+
   const loadData = useCallback(
-    async (showLoading = true) => {
+    async (showLoading = true, ignore?: { current: boolean }) => {
+      if (category !== 'formula-1') {
+        setData(null)
+        setError(null)
+        setIsLive(false)
+        setLoading(false)
+        return
+      }
+
       if (showLoading) setLoading(true)
       setError(null)
 
       try {
-        let result: StandingsData
-        switch (category) {
-          case 'formula-1':
-            result = await fetchF1Standings()
-            break
-          case 'f2':
-            result = getF2Standings()
-            break
-          case 'f3':
-            result = getF3Standings()
-            break
-          case 'f1-academy':
-            result = getF1AcademyStandings()
-            break
-          case 'formula-e':
-            result = getFormulaEStandings()
-            break
-          case 'indycar':
-            result = getIndyCarStandings()
-            break
-        }
+        const result = await fetchF1Standings()
+        if (ignore?.current) return
         setData(result)
         setLastRefresh(Date.now())
         setIsLive(true)
       } catch {
+        if (ignore?.current) return
         setError('Failed to fetch standings. Will retry shortly.')
         setIsLive(false)
       } finally {
-        setLoading(false)
+        if (!ignore?.current) setLoading(false)
       }
     },
     [category],
   )
 
   useEffect(() => {
-    loadData()
+    const ignore = { current: false }
+    void loadData(true, ignore)
+    return () => {
+      ignore.current = true
+    }
   }, [loadData])
 
   useEffect(() => {
+    if (category !== 'formula-1') return
     timerRef.current = setInterval(() => loadData(false), REFRESH_INTERVAL)
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [loadData])
+  }, [loadData, category])
 
   useEffect(() => {
     setTab('drivers')
@@ -135,21 +142,20 @@ export default function StandingsPage() {
               )}
             </span>
           )}
-          {!catMeta.live && (
-            <span className="text-text-secondary dark:text-white/40 font-medium">Sample data</span>
-          )}
-          {lastRefresh > 0 && (
+          {catMeta.live && lastRefresh > 0 && (
             <span className="text-text-secondary dark:text-white/40">
               Updated {new Date(lastRefresh).toLocaleTimeString()}
             </span>
           )}
-          <button
-            onClick={() => loadData()}
-            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 text-text-secondary dark:text-white/50 transition-colors"
-            title="Refresh now"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          {catMeta.live && (
+            <button
+              onClick={() => loadData()}
+              className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/10 text-text-secondary dark:text-white/50 transition-colors"
+              title="Refresh now"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -158,7 +164,7 @@ export default function StandingsPage() {
         {CATEGORIES.map((cat) => (
           <button
             key={cat.id}
-            onClick={() => setCategory(cat.id)}
+            onClick={() => handleCategoryChange(cat.id)}
             className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all ${
               category === cat.id
                 ? 'bg-primary text-white shadow-sm'
@@ -215,9 +221,24 @@ export default function StandingsPage() {
         </div>
       )}
 
-      {/* Table */}
-      {data && tab === 'drivers' && <DriverTable rows={data.drivers} leader={data.drivers[0]} />}
-      {data && tab === 'constructors' && <ConstructorTable rows={data.constructors} leader={data.constructors[0]} />}
+      {!loading && !error && (!data || data.drivers.length === 0) && (
+        <div className="rounded-xl border border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-white/[0.04] px-5 py-10 text-center">
+          <p className="font-semibold text-text-primary dark:text-white">
+            Live {catMeta.label} standings are not available yet
+          </p>
+          <p className="text-sm text-text-secondary dark:text-white/50 mt-2 max-w-md mx-auto">
+            We only publish championship tables from live sources. Formula 1 is updated automatically;
+            other series will appear here once a reliable feed is in place.
+          </p>
+        </div>
+      )}
+
+      {data && data.drivers.length > 0 && tab === 'drivers' && (
+        <DriverTable rows={data.drivers} leader={data.drivers[0]} />
+      )}
+      {data && data.constructors.length > 0 && tab === 'constructors' && (
+        <ConstructorTable rows={data.constructors} leader={data.constructors[0]} />
+      )}
     </div>
   )
 }

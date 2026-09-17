@@ -668,6 +668,7 @@ function SubscribersTab() {
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Source</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Edition</th>
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                 <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Joined</th>
               </tr>
             </thead>
@@ -677,6 +678,17 @@ function SubscribersTab() {
                   <td className="px-5 py-3 text-sm text-gray-800">{s.email}</td>
                   <td className="px-5 py-3 text-xs text-gray-500 capitalize">{s.source}</td>
                   <td className="px-5 py-3 text-xs text-gray-500 capitalize">{s.edition}</td>
+                  <td className="px-5 py-3 text-xs capitalize">
+                    <span
+                      className={
+                        s.status === 'unsubscribed'
+                          ? 'text-red-600'
+                          : 'text-green-700'
+                      }
+                    >
+                      {s.status === 'unsubscribed' ? 'Unsubscribed' : 'Active'}
+                    </span>
+                  </td>
                   <td className="px-5 py-3 text-xs text-gray-400">
                     {format(new Date(s.createdAt), 'MMM d, yyyy')}
                   </td>
@@ -716,7 +728,7 @@ export default function StatsPage() {
 
   return (
     <div>
-      <div className="mb-6">
+      <div className="mb-6" data-tour="stats-header">
         <h1 className="text-2xl font-bold text-gray-900">Traffic & Insights</h1>
         <p className="text-gray-500 text-sm mt-1">Traffic, insights, and subscribers</p>
       </div>

@@ -9,7 +9,7 @@ import RaceCountdown from '../components/RaceCountdown'
 import LatestResults from '../components/LatestResults'
 import SEO from '../components/SEO'
 import { useArticles } from '../hooks/useArticles'
-import { fetchF1Standings, getFeederSeriesStandings, getIndyCarStandings, getFormulaEStandings, getF1AcademyStandings } from '../lib/standingsApi'
+import { fetchF1Standings } from '../lib/standingsApi'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/types'
 import type { Article, Category } from '../lib/types'
 import { useRaceSchedule } from '../hooks/useRaceSchedule'
@@ -37,7 +37,7 @@ const CATEGORY_SERIES: Record<string, 'f1' | 'fe' | 'indycar' | 'f1-academy'> = 
   'formula-1': 'f1',
   'formula-e': 'fe',
   'indycar': 'indycar',
-  'feeder-series': 'f1-academy',
+  'feeder-series': 'f1',
   'f1-academy': 'f1-academy',
 }
 
@@ -145,22 +145,19 @@ export default function CategoryPage() {
   useEffect(() => {
     async function load() {
       try {
-        let data
-        if (cat === 'formula-1') data = await fetchF1Standings()
-        else if (cat === 'formula-e') data = getFormulaEStandings()
-        else if (cat === 'indycar') data = getIndyCarStandings()
-        else if (cat === 'feeder-series') data = getFeederSeriesStandings()
-        else if (cat === 'f1-academy') data = getF1AcademyStandings()
-        else return
-
-        setStandingsDrivers(
-          data.drivers.slice(0, 10).map((d) => ({
-            position: d.position,
-            name: d.name,
-            team: d.team,
-            points: d.points,
-          })),
-        )
+        if (cat === 'formula-1') {
+          const data = await fetchF1Standings()
+          setStandingsDrivers(
+            data.drivers.slice(0, 10).map((d) => ({
+              position: d.position,
+              name: d.name,
+              team: d.team,
+              points: d.points,
+            })),
+          )
+        } else {
+          setStandingsDrivers([])
+        }
       } catch {
         // standings unavailable
       }
@@ -202,7 +199,7 @@ export default function CategoryPage() {
 
   return (
     <div>
-      <SEO title={`${label} | The Fastest Sector`} description={tagline} />
+      <SEO title={label} description={tagline} />
 
       <section className="bg-surface-dark text-white py-8 px-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -336,12 +333,12 @@ export default function CategoryPage() {
             </div>
 
             <aside className="space-y-5">
-              {!isNewsHub && (
+              {seriesKey === 'f1' && (
                 <div className="bg-gray-50 dark:bg-white/5 rounded-xl p-4">
                   <h4 className="text-xs font-black uppercase tracking-wider text-text-secondary dark:text-white/50 mb-3 pb-2 border-b border-gray-200 dark:border-white/10">
                     Latest Results
                   </h4>
-                  <LatestResults series={seriesKey === 'f1' ? 'f1' : seriesKey === 'fe' ? 'fe' : seriesKey === 'indycar' ? 'indycar' : seriesKey === 'f1-academy' ? 'f1-academy' : 'f2'} compact />
+                  <LatestResults series="f1" compact standingsHref="/standings" />
                 </div>
               )}
 

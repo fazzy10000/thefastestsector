@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
+import type { NewsletterTemplate } from '../lib/newsletterHtml'
 import type { Newsletter, NewsletterEdition, NewsletterSubscriber } from '../lib/types'
 
 function uniqueByEmail(items: NewsletterSubscriber[]): NewsletterSubscriber[] {
@@ -17,6 +18,7 @@ function uniqueByEmail(items: NewsletterSubscriber[]): NewsletterSubscriber[] {
 export function useNewsletters() {
   const [newsletters, setNewsletters] = useState<Newsletter[]>([])
   const [subscribers, setSubscribers] = useState<NewsletterSubscriber[]>([])
+  const [customTemplates, setCustomTemplates] = useState<NewsletterTemplate[]>([])
   const [loading, setLoading] = useState(true)
 
   const fetchNewsletters = useCallback(async () => {
@@ -32,11 +34,22 @@ export function useNewsletters() {
     return list
   }, [])
 
+  const fetchCustomTemplates = useCallback(async () => {
+    try {
+      const data = await api<{ templates: NewsletterTemplate[] }>('/api/newsletter-templates')
+      setCustomTemplates(data.templates)
+      return data.templates
+    } catch {
+      setCustomTemplates([])
+      return []
+    }
+  }, [])
+
   useEffect(() => {
-    Promise.all([fetchNewsletters(), fetchSubscribers()])
+    Promise.all([fetchNewsletters(), fetchSubscribers(), fetchCustomTemplates()])
       .catch(() => undefined)
       .finally(() => setLoading(false))
-  }, [fetchNewsletters, fetchSubscribers])
+  }, [fetchNewsletters, fetchSubscribers, fetchCustomTemplates])
 
   const getNewsletter = useCallback(async (id: string): Promise<Newsletter | null> => {
     try {
@@ -75,10 +88,37 @@ export function useNewsletters() {
     [fetchNewsletters],
   )
 
+  const createCustomTemplate = useCallback(
+    async (input: {
+      name: string
+      description?: string
+      subject?: string
+      previewText?: string
+      html: string
+    }) => {
+      const res = await api<{ id: string }>('/api/newsletter-templates', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      })
+      await fetchCustomTemplates()
+      return res.id
+    },
+    [fetchCustomTemplates],
+  )
+
+  const deleteCustomTemplate = useCallback(
+    async (id: string) => {
+      await api(`/api/newsletter-templates/${id}`, { method: 'DELETE' })
+      await fetchCustomTemplates()
+    },
+    [fetchCustomTemplates],
+  )
+
   const recipientsFor = useCallback(
     (edition: NewsletterEdition, list: NewsletterSubscriber[] = subscribers) => {
-      if (edition === 'all') return list
-      return list.filter((s) => s.edition === edition || s.edition === 'all')
+      const active = list.filter((s) => s.status !== 'unsubscribed')
+      if (edition === 'all') return active
+      return active.filter((s) => s.edition === edition || s.edition === 'all')
     },
     [subscribers],
   )
@@ -86,14 +126,18 @@ export function useNewsletters() {
   return {
     newsletters,
     subscribers,
+    customTemplates,
     loading,
     fetchNewsletters,
     fetchSubscribers,
+    fetchCustomTemplates,
     getNewsletter,
     createNewsletter,
     updateNewsletter,
     deleteNewsletter,
     removeNewsletter: deleteNewsletter,
+    createCustomTemplate,
+    deleteCustomTemplate,
     recipientsFor,
   }
 }

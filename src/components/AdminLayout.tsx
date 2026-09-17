@@ -36,7 +36,7 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { label: 'Dashboard', path: '/admin', icon: LayoutDashboard },
-  { label: 'Traffic & Insights', path: '/admin/stats', icon: BarChart3 },
+  { label: 'Traffic & Insights', path: '/admin/stats', icon: BarChart3, tour: 'nav-stats' },
   { label: 'Ads', path: '/admin/ads', icon: Megaphone, requiredAction: 'manage_ads' as const },
   { label: 'New Article', path: '/admin/new', icon: PlusCircle, tour: 'nav-new-article' },
   { label: 'Newsletters', path: '/admin/newsletter', icon: Mail, requiredAction: 'manage_newsletter' as const },
@@ -44,8 +44,8 @@ const NAV: NavItem[] = [
   { label: 'Authors', path: '/admin/authors', icon: Users },
   { label: 'Media', path: '/admin/media', icon: ImageIcon },
   { label: 'SEO', path: '/admin/seo', icon: Search, requiredAction: 'manage_seo' as const, tour: 'nav-seo' },
-  { label: 'Sitemap', path: '/admin/sitemap', icon: Map, requiredAction: 'manage_seo' as const },
-  { label: 'Settings', path: '/admin/settings', icon: Settings, requiredAction: 'manage_settings' as const },
+  { label: 'Sitemap', path: '/admin/sitemap', icon: Map, requiredAction: 'manage_seo' as const, tour: 'nav-sitemap' },
+  { label: 'Settings', path: '/admin/settings', icon: Settings, requiredAction: 'manage_settings' as const, tour: 'nav-settings' },
   { label: 'Team', path: '/admin/team', icon: Shield, requiredAction: 'manage_users' as const },
   { label: 'Import', path: '/admin/import', icon: Upload, requiredAction: 'manage_settings' as const },
 ]
@@ -185,17 +185,17 @@ export default function AdminLayout() {
         />
       )}
 
-      {/* Sidebar — desktop: always visible, mobile: slide-in drawer */}
+      {/* Sidebar — fixed width/height; mobile: slide-in drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-surface-dark text-white flex flex-col flex-shrink-0 transition-transform duration-200 md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 max-w-[16rem] bg-surface-dark text-white flex flex-col overflow-hidden transition-transform duration-200 md:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {sidebar}
       </aside>
 
-      {/* Main content */}
-      <div className="admin-content flex-1 overflow-auto w-full">
+      {/* Main content — offset for fixed sidebar on desktop */}
+      <div className="admin-content flex-1 min-w-0 w-full md:ml-64">
         <div className="p-4 pt-16 md:p-8 md:pt-8">
           <Outlet />
         </div>

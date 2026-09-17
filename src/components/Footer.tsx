@@ -6,6 +6,7 @@ const BOTTOM_LINKS = [
   { label: 'Latest News', to: '/category/news' },
   { label: 'Features', to: '/category/news?tab=features' },
   { label: 'Standings', to: '/standings' },
+  { label: 'Schedule', to: '/schedule' },
   { label: 'Quizzes', to: '/quizzes' },
   { label: 'About Us', to: '/about' },
   { label: 'Policies', to: '/policies' },

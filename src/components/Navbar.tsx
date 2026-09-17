@@ -3,6 +3,9 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Search, Moon, Sun, Menu, X, User, ChevronDown } from 'lucide-react'
 import { useDarkMode } from '../hooks/useDarkMode'
 import { useSettings } from '../hooks/useSettings'
+import { schedulePath } from '../lib/scheduleLinks'
+import { standingsPath, type StandingsSeriesId } from '../lib/standingsLinks'
+import type { RaceEvent } from '../lib/types'
 import SocialIcons from './SocialIcons'
 
 interface NavLink {
@@ -22,7 +25,12 @@ interface NavItem {
   columns?: NavColumn[]
 }
 
-function seriesNav(label: string, categoryHref: string): NavItem {
+function seriesNav(
+  label: string,
+  categoryHref: string,
+  standings: StandingsSeriesId,
+  schedule: RaceEvent['series'],
+): NavItem {
   return {
     label,
     href: categoryHref,
@@ -33,6 +41,8 @@ function seriesNav(label: string, categoryHref: string): NavItem {
           { label: 'News', href: categoryHref },
           { label: 'Results', href: `${categoryHref}?tab=results` },
           { label: 'Features', href: `${categoryHref}?tab=features` },
+          { label: 'Standings', href: standingsPath(standings) },
+          { label: 'Schedule', href: schedulePath(schedule) },
         ],
       },
     ],
@@ -41,11 +51,65 @@ function seriesNav(label: string, categoryHref: string): NavItem {
 
 const NAV_CONFIG: NavItem[] = [
   { label: 'HOME', href: '/' },
-  seriesNav('F1', '/category/formula-1'),
-  seriesNav('FEEDER SERIES', '/category/feeder-series'),
-  seriesNav('F1 ACADEMY', '/category/f1-academy'),
-  seriesNav('INDYCAR', '/category/indycar'),
-  seriesNav('FORMULA E', '/category/formula-e'),
+  seriesNav('F1', '/category/formula-1', 'formula-1', 'f1'),
+  {
+    label: 'FEEDER SERIES',
+    href: '/category/feeder-series',
+    columns: [
+      {
+        heading: 'Explore',
+        links: [
+          { label: 'News', href: '/category/feeder-series' },
+          { label: 'Results', href: '/category/feeder-series?tab=results' },
+          { label: 'Features', href: '/category/feeder-series?tab=features' },
+          { label: 'F2 Standings', href: standingsPath('f2') },
+          { label: 'F3 Standings', href: standingsPath('f3') },
+          { label: 'F2 Schedule', href: schedulePath('f2') },
+          { label: 'F3 Schedule', href: schedulePath('f3') },
+        ],
+      },
+    ],
+  },
+  seriesNav('F1 ACADEMY', '/category/f1-academy', 'f1-academy', 'f1-academy'),
+  seriesNav('INDYCAR', '/category/indycar', 'indycar', 'indycar'),
+  seriesNav('FORMULA E', '/category/formula-e', 'formula-e', 'fe'),
+  {
+    label: 'SCHEDULE',
+    href: '/schedule',
+    activePaths: ['/schedule'],
+    columns: [
+      {
+        heading: 'Calendars',
+        links: [
+          { label: 'All Series', href: '/schedule' },
+          { label: 'Formula 1', href: schedulePath('f1') },
+          { label: 'Formula 2', href: schedulePath('f2') },
+          { label: 'Formula 3', href: schedulePath('f3') },
+          { label: 'F1 Academy', href: schedulePath('f1-academy') },
+          { label: 'IndyCar', href: schedulePath('indycar') },
+          { label: 'Formula E', href: schedulePath('fe') },
+        ],
+      },
+    ],
+  },
+  {
+    label: 'STANDINGS',
+    href: '/standings',
+    activePaths: ['/standings'],
+    columns: [
+      {
+        heading: 'Championships',
+        links: [
+          { label: 'Formula 1', href: standingsPath('formula-1') },
+          { label: 'Formula 2', href: standingsPath('f2') },
+          { label: 'Formula 3', href: standingsPath('f3') },
+          { label: 'F1 Academy', href: standingsPath('f1-academy') },
+          { label: 'IndyCar', href: standingsPath('indycar') },
+          { label: 'Formula E', href: standingsPath('formula-e') },
+        ],
+      },
+    ],
+  },
   {
     label: 'INTERACTIVE',
     href: '/interactive',
@@ -62,19 +126,6 @@ const NAV_CONFIG: NavItem[] = [
     ],
   },
   {
-    label: 'SECTOR SWEEP',
-    href: '/sector-sweep',
-    columns: [
-      {
-        heading: 'Newsletter',
-        links: [
-          { label: 'Subscribe', href: '/sector-sweep#subscribe' },
-          { label: 'Latest Edition', href: '/sector-sweep#latest' },
-        ],
-      },
-    ],
-  },
-  {
     label: 'ABOUT US',
     href: '/about',
     activePaths: ['/about', '/contact', '/join', '/privacy', '/terms'],
@@ -85,6 +136,7 @@ const NAV_CONFIG: NavItem[] = [
           { label: 'Meet the Team', href: '/about' },
           { label: 'Join Us', href: '/join' },
           { label: 'Contact Us', href: '/contact' },
+          { label: 'Sector Sweep', href: '/sector-sweep' },
         ],
       },
     ],
@@ -193,19 +245,20 @@ export default function Navbar() {
       <div className="relative">
         <nav className="border-b border-white/10">
           <div className="max-w-7xl mx-auto px-4">
-            <ul className="hidden md:flex items-center">
+            <ul className="hidden md:flex items-center overflow-x-auto scrollbar-none">
               {NAV_CONFIG.map((item) => {
                 const active = isNavActive(item, location.pathname)
                 return (
                   <li
                     key={item.label}
+                    className="shrink-0"
                     onMouseEnter={() =>
                       item.columns ? setActiveMegaMenu(item.label) : setActiveMegaMenu(null)
                     }
                   >
                     <Link
                       to={item.href}
-                      className={`flex items-center gap-1 px-3 py-3 text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors
+                      className={`flex items-center gap-1 px-2.5 lg:px-3 py-3 text-[11px] lg:text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-colors
                         ${active ? 'text-primary border-b-2 border-primary' : 'hover:text-primary'}`}
                     >
                       {item.label}

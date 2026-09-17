@@ -24,6 +24,9 @@
     "R2_PUBLIC_URL": "https://pub-de50aef2f1cd4436bfc3bc131bd72420.r2.dev",
     "NEWSLETTER_FROM": "The Fastest Sector <beth.t@example.com>"
   },
+  "triggers": {
+    "crons": ["0 6 * * 1"]
+  },
   "observability": {
     "enabled": true
   }
