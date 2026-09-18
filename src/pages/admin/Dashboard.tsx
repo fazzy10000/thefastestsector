@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { CATEGORY_LABELS } from '../../lib/types'
 import type { Article } from '../../lib/types'
 import Pagination from '../../components/Pagination'
+import { articlePath } from '../../lib/articlePath'
 import {
   PlusCircle,
   Edit,
@@ -298,7 +299,7 @@ export default function Dashboard() {
                   <td className="px-5 py-4">
                     <div className="flex items-center justify-end gap-1">
                       <Link
-                        to={`/article/${article.slug}`}
+                        to={articlePath(article)}
                         className="p-1.5 text-gray-400 hover:text-blue-600 transition-colors"
                         title="View"
                       >

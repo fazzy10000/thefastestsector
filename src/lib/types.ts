@@ -31,6 +31,8 @@ export interface TeamPageMember {
   instagram: string
   linkedin: string
   sortOrder: number
+  /** Published articles credited to this person (by author id or name). */
+  articleCount: number
 }
 
 export interface Article {

@@ -66,7 +66,7 @@ const urls = [
   ...articles
     .filter((a) => a?.slug && a.status !== 'draft')
     .map((a) => ({
-      loc: `${BASE}/article/${encodeURIComponent(a.slug)}`,
+      loc: `${BASE}/${encodeURIComponent(a.category || "other")}/${encodeURIComponent(a.slug)}`,
       lastmod: toIsoDate(a.updatedAt || a.publishedAt || a.createdAt),
       changefreq: 'weekly',
       priority: '0.7',

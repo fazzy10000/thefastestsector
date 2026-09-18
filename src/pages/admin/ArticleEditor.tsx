@@ -18,6 +18,7 @@ import SEOPanel from '../../components/admin/SEOPanel'
 import ImageTools from '../../components/admin/ImageTools'
 import MediaPicker from '../../components/admin/MediaPicker'
 import { useMediaLibrary } from '../../hooks/useMediaLibrary'
+import { articlePath } from '../../lib/articlePath'
 import {
   Save,
   Eye,
@@ -285,7 +286,7 @@ export default function ArticleEditor() {
 
   const handlePreview = () => {
     if (slug) {
-      window.open(`${window.location.origin}/article/${slug || slugify(title)}?preview=true`, '_blank')
+      window.open(`${window.location.origin}${articlePath({ category, slug: slug || slugify(title) })}?preview=true`, '_blank')
     }
   }
 

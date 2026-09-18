@@ -33,20 +33,8 @@ export function useTeamPage() {
     return data.members || next
   }, [])
 
-  const importAuthors = useCallback(async (authorIds?: string[]) => {
-    const data = await api<{ members: TeamPageMember[]; imported: number }>(
-      '/api/team-page/import-authors',
-      {
-        method: 'POST',
-        body: JSON.stringify({ authorIds: authorIds || [] }),
-      },
-    )
-    setMembers(data.members || [])
-    return data
-  }, [])
-
   const importStaff = useCallback(async (userIds?: string[]) => {
-    const data = await api<{ members: TeamPageMember[]; imported: number }>(
+    const data = await api<{ members: TeamPageMember[]; imported: number; linked?: number }>(
       '/api/team-page/import-staff',
       {
         method: 'POST',
@@ -57,20 +45,11 @@ export function useTeamPage() {
     return data
   }, [])
 
-  const fetchStaffCandidates = useCallback(async () => {
-    const data = await api<{
-      users: { uid: string; email: string; displayName: string; role: string }[]
-    }>('/api/team-page/staff-candidates')
-    return data.users || []
-  }, [])
-
   return {
     members,
     loading,
     fetchMembers,
     saveMembers,
-    importAuthors,
     importStaff,
-    fetchStaffCandidates,
   }
 }

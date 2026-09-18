@@ -23,6 +23,8 @@ export type FetchArticlesOpts = {
   page?: number
   featured?: boolean
   authorId?: string
+  /** Match articles by author display name when no authorId */
+  authorName?: string
   contentType?: string
   q?: string
   /** summary (default) omits HTML content; full includes it */
@@ -44,6 +46,7 @@ export function useArticles() {
       if (opts?.page != null) params.set('page', String(opts.page))
       if (opts?.featured !== undefined) params.set('featured', String(opts.featured))
       if (opts?.authorId) params.set('authorId', opts.authorId)
+      if (opts?.authorName) params.set('authorName', opts.authorName)
       if (opts?.contentType) params.set('contentType', opts.contentType)
       if (opts?.q) params.set('q', opts.q)
       if (opts?.fields) params.set('fields', opts.fields)

@@ -23,6 +23,7 @@ const RESERVED_SLUGS = new Set([
   'interactive',
   'games',
   'author',
+  'team',
   'admin',
   'api',
   'media',
@@ -31,6 +32,17 @@ const RESERVED_SLUGS = new Set([
   'icons.svg',
   'robots.txt',
   'sitemap.xml',
+])
+
+const ARTICLE_CATEGORIES = new Set([
+  'formula-1',
+  'feeder-series',
+  'formula-e',
+  'indycar',
+  'exclusive',
+  'f1-academy',
+  'other',
+  'news',
 ])
 
 const STATIC_REDIRECTS: Record<string, string> = {
@@ -55,15 +67,39 @@ function redirect(to: string, permanent = true): Response {
   })
 }
 
-function resolveLegacyRedirect(pathname: string): string | null {
+async function articlePathBySlug(env: Env, slug: string): Promise<string | null> {
+  const row = await env.DB.prepare(
+    `SELECT category, slug FROM articles WHERE slug = ? LIMIT 1`,
+  )
+    .bind(slug)
+    .first<{ category: string; slug: string }>()
+  if (!row?.slug) return null
+  const category = (row.category || 'other').trim() || 'other'
+  return `/${category}/${row.slug}`
+}
+
+async function resolveLegacyRedirect(pathname: string, env: Env): Promise<string | null> {
   if (STATIC_REDIRECTS[pathname]) return STATIC_REDIRECTS[pathname]
 
-  const dated = pathname.match(/^\/(\d{4})\/(\d{2})\/(\d{2})\/([a-z0-9-]+)\/?$/i)
-  if (dated) return `/article/${dated[4]}`
+  // Old SPA article URLs → /{category}/{slug}
+  const oldArticle = pathname.match(/^\/article\/([a-z0-9-]+)\/?$/i)
+  if (oldArticle) {
+    return (await articlePathBySlug(env, oldArticle[1])) || `/other/${oldArticle[1]}`
+  }
 
+  // WordPress dated permalinks
+  const dated = pathname.match(/^\/(\d{4})\/(\d{2})\/(\d{2})\/([a-z0-9-]+)\/?$/i)
+  if (dated) {
+    return (await articlePathBySlug(env, dated[4])) || `/other/${dated[4]}`
+  }
+
+  // Bare category → category listing
   const bare = pathname.match(/^\/([a-z0-9-]+)\/?$/i)
-  if (bare && !RESERVED_SLUGS.has(bare[1].toLowerCase())) {
-    return `/article/${bare[1]}`
+  if (bare) {
+    const key = bare[1].toLowerCase()
+    if (RESERVED_SLUGS.has(key)) return null
+    if (ARTICLE_CATEGORIES.has(key)) return `/category/${key}`
+    return (await articlePathBySlug(env, bare[1])) || `/other/${bare[1]}`
   }
 
   return null
@@ -105,7 +141,7 @@ export default {
     if (apiResponse) return apiResponse
 
     if (request.method === 'GET' || request.method === 'HEAD') {
-      const target = resolveLegacyRedirect(url.pathname)
+      const target = await resolveLegacyRedirect(url.pathname, env)
       if (target) {
         const dest = new URL(target, url.origin)
         dest.search = url.search

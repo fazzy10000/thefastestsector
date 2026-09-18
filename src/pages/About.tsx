@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useSettings } from '../hooks/useSettings'
 import { displayAuthorName } from '../lib/formatAuthor'
 import { useTeamPage } from '../hooks/useTeamPage'
@@ -8,28 +9,59 @@ import type { TeamPageMember } from '../lib/types'
 
 function TeamCard({ member }: { member: TeamPageMember }) {
   const name = displayAuthorName(member.name)
+  const hasArticles = (member.articleCount || 0) > 0
+  const articlesHref = hasArticles ? `/team/${member.id}` : null
 
   return (
     <article className="bg-surface-card dark:bg-white/5 rounded-xl border border-gray-200/80 dark:border-white/10 p-5 flex flex-col items-center text-center">
-      <img
-        src={member.avatar || '/tfs-logo.png'}
-        alt={name}
-        className="w-20 h-20 rounded-full object-cover mb-4 bg-gray-100 dark:bg-white/10"
-      />
-      <h3 className="text-base font-bold text-text-primary dark:text-white leading-snug mb-1">
-        {name}
-      </h3>
+      {articlesHref ? (
+        <Link to={articlesHref} className="flex flex-col items-center group">
+          <img
+            src={member.avatar || '/tfs-logo.png'}
+            alt={name}
+            className="w-20 h-20 rounded-full object-cover mb-4 bg-gray-100 dark:bg-white/10 ring-2 ring-transparent group-hover:ring-primary/40 transition"
+          />
+          <h3 className="text-base font-bold text-text-primary dark:text-white leading-snug mb-1 group-hover:text-primary transition-colors">
+            {name}
+          </h3>
+        </Link>
+      ) : (
+        <>
+          <img
+            src={member.avatar || '/tfs-logo.png'}
+            alt={name}
+            className="w-20 h-20 rounded-full object-cover mb-4 bg-gray-100 dark:bg-white/10"
+          />
+          <h3 className="text-base font-bold text-text-primary dark:text-white leading-snug mb-1">
+            {name}
+          </h3>
+        </>
+      )}
       {member.roleTitle ? (
         <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-2">
           {member.roleTitle}
         </p>
       ) : null}
       {member.bio ? (
-        <p className="text-sm text-text-secondary dark:text-white/60 line-clamp-3 mb-3">{member.bio}</p>
+        articlesHref ? (
+          <Link
+            to={articlesHref}
+            className="text-sm text-text-secondary dark:text-white/60 line-clamp-3 mb-3 hover:text-primary transition-colors"
+          >
+            {member.bio}
+          </Link>
+        ) : (
+          <p className="text-sm text-text-secondary dark:text-white/60 line-clamp-3 mb-3">{member.bio}</p>
+        )
       ) : (
         <p className="text-sm text-text-secondary dark:text-white/40 mb-3">Motorsports Writer</p>
       )}
-      <div className="flex items-center gap-3 mt-auto">
+      <div className="flex flex-wrap items-center justify-center gap-3 mt-auto">
+        {articlesHref ? (
+          <Link to={articlesHref} className="text-xs font-semibold text-primary hover:underline">
+            View articles ({member.articleCount})
+          </Link>
+        ) : null}
         {member.instagram && (
           <a
             href={member.instagram}

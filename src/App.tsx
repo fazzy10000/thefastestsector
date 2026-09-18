@@ -44,6 +44,7 @@ import EditorialPolicy from './pages/EditorialPolicy'
 import CorrectionsPolicy from './pages/CorrectionsPolicy'
 import Terms from './pages/Terms'
 import AuthorPage from './pages/AuthorPage'
+import TeamMemberPage from './pages/TeamMemberPage'
 
 export default function App() {
   return (
@@ -56,6 +57,7 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/article/:slug" element={<ArticlePage />} />
           <Route path="/author/:authorId" element={<AuthorPage />} />
+          <Route path="/team/:memberId" element={<TeamMemberPage />} />
           <Route path="/category/:category" element={<CategoryPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/standings" element={<StandingsPage />} />
@@ -76,6 +78,7 @@ export default function App() {
           <Route path="/interactive/:section" element={<InteractivePage />} />
           <Route path="/games" element={<GamesPage />} />
           <Route path="/games/:gameId" element={<GamesPage />} />
+          <Route path="/:category/:slug" element={<ArticlePage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
 

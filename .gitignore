@@ -33,3 +33,8 @@ Thumbs.db
 tmp-screenshots/
 body.txt
 
+
+# WP exports (PII)
+src/data/wp-subscribers-import.json
+src/data/wp-import.json
+.seed-*.sql

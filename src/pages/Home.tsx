@@ -15,6 +15,7 @@ import { quizCoverImage } from '../lib/quizCovers'
 import { schedulePath } from '../lib/scheduleLinks'
 import LatestResults from '../components/LatestResults'
 import { formatDistanceToNow, format } from 'date-fns'
+import { articlePath } from '../lib/articlePath'
 
 const AUTOPLAY_MS = 6000
 
@@ -83,7 +84,7 @@ function CompactArticleItem({ article }: { article: Article }) {
   const timeAgo = safeTimeAgo(article.publishedAt ?? article.createdAt)
   return (
     <Link
-      to={`/article/${article.slug}`}
+      to={articlePath(article)}
       className="flex gap-3 py-3 border-b border-gray-100 dark:border-white/5 last:border-0 group"
     >
       {article.featuredImage && (
@@ -258,7 +259,7 @@ export default function Home() {
                   return (
                     <Link
                       key={article.id}
-                      to={`/article/${article.slug}`}
+                      to={articlePath(article)}
                       className={`absolute inset-0 transition-opacity duration-700 ${
                         i === currentSlide ? 'opacity-100 z-10' : 'opacity-0 z-0'
                       }`}
@@ -443,7 +444,7 @@ export default function Home() {
 
           {featuredNewsArticle && (
             <Link
-              to={`/article/${featuredNewsArticle.slug}`}
+              to={articlePath(featuredNewsArticle)}
               className="group flex flex-col sm:flex-row gap-4 mb-4 p-4 rounded-xl bg-surface-card dark:bg-white/5 hover:shadow-md dark:hover:bg-white/8 transition-all"
             >
               {featuredNewsArticle.featuredImage && (
@@ -584,7 +585,7 @@ export default function Home() {
               return (
                 <Link
                   key={article.id}
-                  to={`/article/${article.slug}`}
+                  to={articlePath(article)}
                   className="group rounded-xl overflow-hidden bg-surface-card dark:bg-white/5 hover:shadow-lg transition-shadow"
                 >
                   <div className="relative">

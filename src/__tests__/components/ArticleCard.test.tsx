@@ -45,7 +45,7 @@ describe('ArticleCard', () => {
   it('links to the correct article slug', () => {
     renderWithRouter(<ArticleCard article={makeArticle({ slug: 'my-slug' })} />)
     const link = screen.getByRole('link')
-    expect(link.getAttribute('href')).toBe('/article/my-slug')
+    expect(link.getAttribute('href')).toBe('/formula-1/my-slug')
   })
 
   it('renders hero variant without crashing', () => {

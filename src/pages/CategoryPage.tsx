@@ -17,6 +17,7 @@ import { sortEventsChronologically } from '../data/raceSchedule2026'
 import { flagEmojiFromCountryCode } from '../lib/countryFlags'
 import { schedulePath } from '../lib/scheduleLinks'
 import { formatDistanceToNow } from 'date-fns'
+import { articlePath } from '../lib/articlePath'
 
 const PAGE_SIZE = 12
 
@@ -69,7 +70,7 @@ interface StandingsDriver {
 function CompactArticleRow({ article }: { article: Article }) {
   const timeAgo = safeTimeAgo(article.publishedAt ?? article.createdAt)
   return (
-    <Link to={`/article/${article.slug}`} className="flex gap-3 py-2.5 border-b border-gray-100 dark:border-white/5 last:border-0 group">
+    <Link to={articlePath(article)} className="flex gap-3 py-2.5 border-b border-gray-100 dark:border-white/5 last:border-0 group">
       {article.featuredImage && (
         <img src={article.featuredImage} alt={article.title} className="w-14 h-14 object-cover rounded flex-none" />
       )}
@@ -265,7 +266,7 @@ export default function CategoryPage() {
 
                   {featuredArticle && (
                     <Link
-                      to={`/article/${featuredArticle.slug}`}
+                      to={articlePath(featuredArticle)}
                       className="group block rounded-xl overflow-hidden bg-gray-50 dark:bg-white/5 hover:shadow-lg transition-shadow mb-4"
                     >
                       {featuredArticle.featuredImage ? (

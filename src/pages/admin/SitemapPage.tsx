@@ -40,7 +40,7 @@ const SECTION_DEFS: SectionDef[] = [
   {
     id: 'article',
     label: 'Articles',
-    hint: '/article/…',
+    hint: '/{category}/…',
     icon: Newspaper,
     accent: 'bg-red-500',
     chipBg: 'bg-red-50',

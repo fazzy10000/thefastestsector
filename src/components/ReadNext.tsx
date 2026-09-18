@@ -5,6 +5,7 @@ import { useArticles } from '../hooks/useArticles'
 import { CATEGORY_LABELS, CATEGORY_COLORS } from '../lib/types'
 import type { Article } from '../lib/types'
 import { Clock, ArrowRight } from 'lucide-react'
+import { articlePath } from '../lib/articlePath'
 
 interface Props {
   current: Article
@@ -70,7 +71,7 @@ export default function ReadNext({ current }: Props) {
         {recommendations.map((article) => (
           <Link
             key={article.id}
-            to={`/article/${article.slug}`}
+            to={articlePath(article)}
             className="group block rounded-xl overflow-hidden bg-surface-card dark:bg-white/5 shadow-sm hover:shadow-md transition-shadow"
           >
             {article.featuredImage && (

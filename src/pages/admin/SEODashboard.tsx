@@ -5,6 +5,7 @@ import { useArticles } from '../../hooks/useArticles'
 import { useSettings } from '../../hooks/useSettings'
 import { useAuth } from '../../hooks/useAuth'
 import type { Article, ArticleSEOOverride, GlobalSEOSettings, SiteSettings } from '../../lib/types'
+import { articlePath } from '../../lib/articlePath'
 import {
   Shield,
   Save,
@@ -411,8 +412,9 @@ export default function SEODashboard() {
                   const truncated = meta.length > 72 ? `${meta.slice(0, 72)}…` : meta
                   const score = seoScore(article, o)
                   const open = expandedId === article.id
+                  const path = articlePath(article)
                   const articlePublicUrl = new URL(
-                    `article/${article.slug}`,
+                    path.replace(/^\//, ''),
                     `${window.location.origin}${import.meta.env.BASE_URL}`,
                   ).href
                   return (
@@ -434,7 +436,7 @@ export default function SEODashboard() {
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1 text-primary">
-                            <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">/article/{article.slug}</code>
+                            <code className="text-xs bg-gray-100 px-1.5 py-0.5 rounded">{path}</code>
                             <a
                               href={articlePublicUrl}
                               target="_blank"

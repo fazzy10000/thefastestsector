@@ -116,7 +116,7 @@ export function useNewsletters() {
 
   const recipientsFor = useCallback(
     (edition: NewsletterEdition, list: NewsletterSubscriber[] = subscribers) => {
-      const active = list.filter((s) => s.status !== 'unsubscribed')
+      const active = list.filter((s) => s.status === 'active')
       if (edition === 'all') return active
       return active.filter((s) => s.edition === edition || s.edition === 'all')
     },

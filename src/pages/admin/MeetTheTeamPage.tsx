@@ -1,6 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuthors } from '../../hooks/useAuthors'
 import { useTeamPage } from '../../hooks/useTeamPage'
 import { useSettings } from '../../hooks/useSettings'
 import type { TeamPageMember } from '../../lib/types'
@@ -12,7 +11,6 @@ import {
   X,
   Save,
   FolderOpen,
-  UserPlus,
   ArrowUp,
   ArrowDown,
   Users,
@@ -30,25 +28,16 @@ const EMPTY: Omit<TeamPageMember, 'sortOrder'> = {
   twitter: '',
   instagram: '',
   linkedin: '',
+  articleCount: 0,
 }
-
-type StaffCandidate = { uid: string; email: string; displayName: string; role: string }
-type ImportMode = 'authors' | 'staff' | null
-
 export default function MeetTheTeamPage() {
-  const { authors } = useAuthors()
-  const { members, loading, saveMembers, importAuthors, importStaff, fetchStaffCandidates } =
-    useTeamPage()
+  const { members, loading, saveMembers, importStaff } = useTeamPage()
   const { settings, saveSettings } = useSettings()
   const [draft, setDraft] = useState<TeamPageMember[]>([])
   const [dirty, setDirty] = useState(false)
   const [ourStory, setOurStory] = useState<string | null>(null)
   const [editing, setEditing] = useState<TeamPageMember | null>(null)
   const [libraryOpen, setLibraryOpen] = useState(false)
-  const [importMode, setImportMode] = useState<ImportMode>(null)
-  const [selectedAuthorIds, setSelectedAuthorIds] = useState<string[]>([])
-  const [staffCandidates, setStaffCandidates] = useState<StaffCandidate[]>([])
-  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -56,16 +45,6 @@ export default function MeetTheTeamPage() {
   const storyText = ourStory ?? settings.ourStory
   const storyDirty = ourStory !== null && ourStory !== settings.ourStory
   const hasUnsaved = dirty || storyDirty
-
-  const linkedAuthorIds = useMemo(
-    () => new Set(list.map((m) => m.authorId).filter(Boolean)),
-    [list],
-  )
-
-  const importableAuthors = useMemo(
-    () => authors.filter((a) => !linkedAuthorIds.has(a.id)),
-    [authors, linkedAuthorIds],
-  )
 
   const beginEdit = (member?: TeamPageMember) => {
     setEditing(
@@ -134,52 +113,24 @@ export default function MeetTheTeamPage() {
     }
   }
 
-  const handleImportAuthors = async (ids: string[]) => {
+  const handleImportTeam = async () => {
     setSaving(true)
     setMessage('')
     try {
       if (dirty) await saveMembers(list)
-      const result = await importAuthors(ids)
+      const result = await importStaff([])
       setDirty(false)
-      setImportMode(null)
-      setSelectedAuthorIds([])
+      const parts: string[] = []
+      if (result.imported > 0) {
+        parts.push(`added ${result.imported}`)
+      }
+      if ((result.linked || 0) > 0) {
+        parts.push(`linked ${result.linked} to Author profiles`)
+      }
       setMessage(
-        result.imported > 0
-          ? `Imported ${result.imported} author${result.imported === 1 ? '' : 's'}.`
-          : 'No new authors to import (already on the page).',
-      )
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Import failed')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const openStaffImport = async () => {
-    setMessage('')
-    try {
-      const users = await fetchStaffCandidates()
-      setStaffCandidates(users)
-      setSelectedUserIds(users.map((u) => u.uid))
-      setImportMode('staff')
-    } catch (err) {
-      setMessage(err instanceof Error ? err.message : 'Could not load staff list')
-    }
-  }
-
-  const handleImportStaff = async (ids: string[]) => {
-    setSaving(true)
-    setMessage('')
-    try {
-      if (dirty) await saveMembers(list)
-      const result = await importStaff(ids)
-      setDirty(false)
-      setImportMode(null)
-      setSelectedUserIds([])
-      setMessage(
-        result.imported > 0
-          ? `Imported ${result.imported} staff member${result.imported === 1 ? '' : 's'}.`
-          : 'No new staff to import (already on the page or matched an existing name).',
+        parts.length
+          ? `Team import complete — ${parts.join(', ')}.`
+          : 'Everyone with a login is already on the page.',
       )
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Import failed')
@@ -195,32 +146,28 @@ export default function MeetTheTeamPage() {
           <h1 className="text-2xl font-bold text-gray-900">Meet the Team</h1>
           <p className="text-gray-500 text-sm mt-1">
             Edit the public{' '}
-            <Link to="/about" target="_blank" className="text-primary hover:underline inline-flex items-center gap-1">
+            <Link
+              to="/about"
+              target="_blank"
+              className="text-primary hover:underline inline-flex items-center gap-1"
+            >
               About / Meet the Team page
               <ExternalLink className="w-3 h-3" />
             </Link>
-            . Roster starts from Authors; add extras or reorder as needed.
+            . Import team pulls everyone with a login (authors, editors, SEO, admins) and fills
+            bios/photos from their Author profile when names match. Add extras for anyone without
+            a login.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => {
-              setSelectedAuthorIds(importableAuthors.map((a) => a.id))
-              setImportMode('authors')
-            }}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <UserPlus className="w-4 h-4" />
-            Import authors
-          </button>
-          <button
-            type="button"
-            onClick={() => void openStaffImport()}
-            className="flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50"
+            onClick={() => void handleImportTeam()}
+            disabled={saving}
+            className="flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
           >
             <Users className="w-4 h-4" />
-            Import staff
+            Import team
           </button>
           <button
             type="button"
@@ -267,15 +214,16 @@ export default function MeetTheTeamPage() {
         <div className="bg-white rounded-xl border border-dashed border-gray-200 p-10 text-center">
           <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
           <p className="text-gray-500 text-sm mb-4">
-            Nobody on the Meet the Team page yet. Import from Authors or add someone manually.
+            Nobody on the Meet the Team page yet. Import everyone with a login, or add someone
+            manually.
           </p>
           <div className="flex justify-center gap-2">
             <button
               type="button"
-              onClick={() => void handleImportAuthors([])}
+              onClick={() => void handleImportTeam()}
               className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium"
             >
-              Import all authors
+              Import team
             </button>
             <button
               type="button"
@@ -312,13 +260,17 @@ export default function MeetTheTeamPage() {
                       {member.roleTitle}
                     </span>
                   )}
-                  {member.authorId ? (
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-sky-50 text-sky-700">
-                      From Authors
+                  {member.userId && member.authorId ? (
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">
+                      Staff + Author
                     </span>
                   ) : member.userId ? (
                     <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-violet-50 text-violet-700">
-                      From Staff
+                      Staff
+                    </span>
+                  ) : member.authorId ? (
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-sky-50 text-sky-700">
+                      Author profile
                     </span>
                   ) : (
                     <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
@@ -414,7 +366,7 @@ export default function MeetTheTeamPage() {
                   value={editing.roleTitle}
                   onChange={(e) => setEditing({ ...editing, roleTitle: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-primary"
-                  placeholder="e.g. Editor, Social media, Founder"
+                  placeholder="e.g. Founder, Motorsports Writer (not Admin/SEO login roles)"
                 />
               </div>
               <div>
@@ -504,146 +456,6 @@ export default function MeetTheTeamPage() {
               >
                 <Save className="w-4 h-4" />
                 Add to list
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {importMode === 'authors' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Import from Authors</h2>
-              <button
-                type="button"
-                onClick={() => setImportMode(null)}
-                className="p-1.5 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            {importableAuthors.length === 0 ? (
-              <p className="text-sm text-gray-500 py-4">
-                All authors are already on the Meet the Team page.
-              </p>
-            ) : (
-              <div className="space-y-2 mb-4">
-                {importableAuthors.map((a) => (
-                  <label
-                    key={a.id}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedAuthorIds.includes(a.id)}
-                      onChange={(e) => {
-                        setSelectedAuthorIds((prev) =>
-                          e.target.checked
-                            ? [...prev, a.id]
-                            : prev.filter((id) => id !== a.id),
-                        )
-                      }}
-                      className="rounded border-gray-300 text-primary"
-                    />
-                    {a.avatar ? (
-                      <img src={a.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-400">
-                        {a.name.charAt(0)}
-                      </div>
-                    )}
-                    <span className="text-sm text-gray-800">{a.name}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setImportMode(null)}
-                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={selectedAuthorIds.length === 0 || saving}
-                onClick={() => void handleImportAuthors(selectedAuthorIds)}
-                className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-50"
-              >
-                Import selected
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {importMode === 'staff' && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full p-6 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-gray-900">Import from Staff</h2>
-              <button
-                type="button"
-                onClick={() => setImportMode(null)}
-                className="p-1.5 text-gray-400 hover:text-gray-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mb-3">
-              Team login accounts — admin, editor, SEO, and author roles. People already on the page
-              (or matching an author name) are skipped.
-            </p>
-            {staffCandidates.length === 0 ? (
-              <p className="text-sm text-gray-500 py-4">
-                No staff left to import, or everyone is already listed.
-              </p>
-            ) : (
-              <div className="space-y-2 mb-4">
-                {staffCandidates.map((u) => (
-                  <label
-                    key={u.uid}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedUserIds.includes(u.uid)}
-                      onChange={(e) => {
-                        setSelectedUserIds((prev) =>
-                          e.target.checked
-                            ? [...prev, u.uid]
-                            : prev.filter((id) => id !== u.uid),
-                        )
-                      }}
-                      className="rounded border-gray-300 text-primary"
-                    />
-                    <div className="min-w-0">
-                      <p className="text-sm text-gray-800">{u.displayName}</p>
-                      <p className="text-[11px] text-gray-400 capitalize">
-                        {u.role} · {u.email}
-                      </p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            )}
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setImportMode(null)}
-                className="px-4 py-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={selectedUserIds.length === 0 || saving}
-                onClick={() => void handleImportStaff(selectedUserIds)}
-                className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-50"
-              >
-                Import selected
               </button>
             </div>
           </div>

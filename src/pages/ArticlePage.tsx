@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { useParams, Link, useSearchParams } from 'react-router-dom'
+import { useParams, Link, useSearchParams, Navigate, useLocation } from 'react-router-dom'
 import { formatDistanceToNow } from 'date-fns'
 import { AlertTriangle, Clock, Share2, Copy, ChevronRight } from 'lucide-react'
 import { useArticles } from '../hooks/useArticles'
@@ -10,6 +10,7 @@ import { sortEventsChronologically } from '../data/raceSchedule2026'
 import { flagEmojiFromCountryCode } from '../lib/countryFlags'
 import { schedulePath } from '../lib/scheduleLinks'
 import { articleSeriesContext } from '../lib/articleSeries'
+import { articlePath, isArticleCategory } from '../lib/articlePath'
 import RacingLoader from '../components/RacingLoader'
 import SEO from '../components/SEO'
 import AuthorBlock from '../components/AuthorBlock'
@@ -108,7 +109,7 @@ function SidebarSection({ title, children }: { title: string; children: React.Re
 function RelatedArticleCard({ article }: { article: Article }) {
   const timeAgo = safeTimeAgo(article.publishedAt ?? article.createdAt)
   return (
-    <Link to={`/article/${article.slug}`} className="flex gap-3 py-2.5 border-b border-gray-200 dark:border-white/10 last:border-0 group">
+    <Link to={articlePath(article)} className="flex gap-3 py-2.5 border-b border-gray-200 dark:border-white/10 last:border-0 group">
       {article.featuredImage && (
         <img src={article.featuredImage} alt={article.title} className="w-14 h-14 object-cover rounded flex-none" />
       )}
@@ -126,7 +127,8 @@ function RelatedArticleCard({ article }: { article: Article }) {
 }
 
 export default function ArticlePage() {
-  const { slug } = useParams<{ slug: string }>()
+  const { slug, category: categoryParam } = useParams<{ slug: string; category?: string }>()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const isPreview = searchParams.get('preview') === 'true'
   const { getArticleBySlug, articles, fetchArticles } = useArticles()
@@ -145,6 +147,12 @@ export default function ArticlePage() {
   useEffect(() => {
     async function load() {
       if (!slug) return
+      // Reject non-category paths that still match /:category/:slug (e.g. unknown)
+      if (categoryParam && !isArticleCategory(categoryParam) && !location.pathname.startsWith('/article/')) {
+        setArticle(null)
+        setLoading(false)
+        return
+      }
       const found = await getArticleBySlug(slug, isPreview && isAuthenticated)
       if (found && found.status !== 'published' && !(isPreview && isAuthenticated)) {
         setArticle(null)
@@ -154,7 +162,7 @@ export default function ArticlePage() {
       setLoading(false)
     }
     load()
-  }, [slug, getArticleBySlug, isPreview, isAuthenticated])
+  }, [slug, categoryParam, getArticleBySlug, isPreview, isAuthenticated, location.pathname])
 
   useEffect(() => {
     if (!article) return
@@ -241,6 +249,12 @@ export default function ArticlePage() {
   const timeAgo = safeTimeAgo(article.publishedAt ?? article.createdAt)
   const wordCount = article.content.replace(/<[^>]*>/g, '').split(/\s+/).filter(Boolean).length
   const readTime = Math.max(1, Math.ceil(wordCount / 200))
+  const canonicalPath = articlePath(article)
+  const authorHref = article.authorId ? `/author/${article.authorId}` : null
+
+  if (location.pathname !== canonicalPath) {
+    return <Navigate to={`${canonicalPath}${location.search}`} replace />
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -296,7 +310,13 @@ export default function ArticlePage() {
             </div>
             <div>
               <p className="text-sm font-bold text-text-primary dark:text-white">
-                {displayAuthorName(article.author)}
+                {authorHref ? (
+                  <Link to={authorHref} className="hover:text-primary transition-colors">
+                    by {displayAuthorName(article.author)}
+                  </Link>
+                ) : (
+                  <>by {displayAuthorName(article.author)}</>
+                )}
               </p>
               <div className="flex items-center gap-2 text-xs text-text-secondary dark:text-white/50">
                 {timeAgo && <span>{timeAgo}</span>}

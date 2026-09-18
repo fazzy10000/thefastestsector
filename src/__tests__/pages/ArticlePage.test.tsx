@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import ArticlePage from '../../pages/ArticlePage'
+import { AuthProvider } from '../../hooks/useAuth'
 import type { Article } from '../../lib/types'
 
 function makeArticle(overrides: Partial<Article> = {}): Article {
@@ -29,13 +30,16 @@ function makeArticle(overrides: Partial<Article> = {}): Article {
   }
 }
 
-function renderArticlePage(slug: string) {
+function renderArticlePage(slug: string, category = 'formula-1') {
   return render(
-    <MemoryRouter initialEntries={[`/article/${slug}`]}>
-      <Routes>
-        <Route path="/article/:slug" element={<ArticlePage />} />
-      </Routes>
-    </MemoryRouter>,
+    <AuthProvider>
+      <MemoryRouter initialEntries={[`/${category}/${slug}`]}>
+        <Routes>
+          <Route path="/article/:slug" element={<ArticlePage />} />
+          <Route path="/:category/:slug" element={<ArticlePage />} />
+        </Routes>
+      </MemoryRouter>
+    </AuthProvider>,
   )
 }
 
