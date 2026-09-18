@@ -113,7 +113,7 @@ function seoTourSteps(role: UserRole): TourStep[] {
       route: '/admin/stats',
       target: 'stats-header',
       title: 'Three tabs of data',
-      body: 'Traffic is the short-term picture, Insights is the long view (best day, top categories/authors), and Subscribers is the newsletter list. That’s private counting — nothing goes to Google Analytics from here.',
+      body: 'Traffic covers up to the last year (7 / 30 / 90 days or 1 year). Insights is the longer view — last year by default, or 90 days / all time — plus subscribers. That’s private counting; nothing goes to Google Analytics from here.',
     },
     {
       id: 'nav-new-article',
@@ -226,8 +226,8 @@ function writingTourSteps(role: UserRole): TourStep[] {
       title: 'Draft, publish or schedule',
       body:
         role === 'author'
-          ? 'Save Draft keeps your piece private for review. Publishing and scheduling are reserved for editors and admins — they’ll put it live when it’s ready.'
-          : 'Save Draft keeps it private; Publish puts it live immediately. To schedule, pick a date in the Schedule card on the right and a Schedule button appears. Authors can save drafts only — publishing is editor/admin.',
+          ? 'Save Draft keeps your piece private. When it’s ready, use Ready for review so it appears on the Ready for review tab. Publishing and scheduling stay with editors and admins.'
+          : 'Save Draft, mark Ready for review, Publish, or Schedule. When you publish or return a ready-for-review piece, you’re credited as the reviewer on the dashboard.',
     },
     {
       id: 'dashboard-review',
@@ -236,8 +236,8 @@ function writingTourSteps(role: UserRole): TourStep[] {
       title: 'Back on the Dashboard',
       body:
         role === 'author'
-          ? 'Every article lands here with its status — published, draft or scheduled. Filter with the tabs above. Publishing and deleting are reserved for editors and admins. That’s the tour — happy writing!'
-          : 'Every article lands here with its status — published, draft or scheduled. Filter with the tabs above, click a status badge to toggle publish/draft, or edit any time. That’s the tour — happy writing!',
+          ? 'Every article lands here with its status — published, draft, ready for review, or scheduled. Filter with the tabs above. That’s the tour — happy writing!'
+          : 'Use Ready for review to find submissions. After you publish or schedule, the list shows Reviewed by you. That’s the tour — happy writing!',
     },
   ]
 }

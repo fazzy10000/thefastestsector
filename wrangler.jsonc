@@ -2,14 +2,27 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "thefastestsector",
   "compatibility_date": "2026-04-12",
+  "workers_dev": true,
+  "preview_urls": true,
   "dev": { "port": 8787 },
   "main": "worker/index.ts",
+  // Ensures ./dist exists for assets on `wrangler deploy` / Workers Builds CI.
+  // Skipped when WRANGLER_COMMAND=dev (see scripts/wrangler-assets-build.mjs).
+  "build": {
+    "command": "node scripts/wrangler-assets-build.mjs"
+  },
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*", "/media/*"]
   },
+  // Serves the Worker on the brand domain once the zone is on Cloudflare
+  // and nameservers have been switched away from WordPress.com.
+  "routes": [
+    { "pattern": "thefastestsector.com", "custom_domain": true },
+    { "pattern": "www.thefastestsector.com", "custom_domain": true }
+  ],
   "r2_buckets": [
     { "binding": "IMAGES", "bucket_name": "tfs-images" }
   ],

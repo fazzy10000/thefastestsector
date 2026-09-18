@@ -18,6 +18,21 @@ export interface Author {
   linkedin: string
 }
 
+/** Curated Meet the Team page entry (About). May link to an author or be a custom extra. */
+export interface TeamPageMember {
+  id: string
+  authorId: string
+  userId: string
+  name: string
+  roleTitle: string
+  bio: string
+  avatar: string
+  twitter: string
+  instagram: string
+  linkedin: string
+  sortOrder: number
+}
+
 export interface Article {
   id: string
   title: string
@@ -32,7 +47,11 @@ export interface Article {
   authorId: string
   editor?: string
   editorId?: string
-  status: 'draft' | 'published' | 'scheduled'
+  /** Staff who completed review (admin panel credit) */
+  reviewedBy?: string
+  reviewedById?: string
+  reviewedAt?: number | null
+  status: 'draft' | 'ready_for_review' | 'published' | 'scheduled'
   featured: boolean
   scheduledAt: number | null
   createdAt: number

@@ -15,9 +15,38 @@ import {
   CheckCircle,
   Clock,
   CalendarClock,
+  ClipboardCheck,
 } from 'lucide-react'
 
 const PAGE_SIZE = 20
+
+type ArticleFilter = 'all' | 'published' | 'draft' | 'ready_for_review' | 'scheduled'
+
+const FILTER_TABS: { id: ArticleFilter; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'published', label: 'Published' },
+  { id: 'ready_for_review', label: 'Ready for review' },
+  { id: 'draft', label: 'Drafts' },
+  { id: 'scheduled', label: 'Scheduled' },
+]
+
+function statusBadgeClass(status: Article['status']) {
+  switch (status) {
+    case 'published':
+      return 'bg-green-50 text-green-700'
+    case 'ready_for_review':
+      return 'bg-blue-50 text-blue-700'
+    case 'scheduled':
+      return 'bg-amber-50 text-amber-700'
+    default:
+      return 'bg-yellow-50 text-yellow-700'
+  }
+}
+
+function statusLabel(status: Article['status']) {
+  if (status === 'ready_for_review') return 'Ready for review'
+  return status
+}
 
 export default function Dashboard() {
   const { fetchArticles, removeArticle, updateArticle, meta } = useArticles()
@@ -26,7 +55,7 @@ export default function Dashboard() {
   const canDelete = can('edit_any_article')
   const [articles, setArticles] = useState<Article[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<'all' | 'published' | 'draft' | 'scheduled'>('all')
+  const [filter, setFilter] = useState<ArticleFilter>('all')
   const [page, setPage] = useState(1)
 
   const loadArticles = useCallback(async () => {
@@ -34,7 +63,7 @@ export default function Dashboard() {
     const opts =
       filter === 'all'
         ? { page, limit: PAGE_SIZE }
-        : { status: filter as 'published' | 'draft' | 'scheduled', page, limit: PAGE_SIZE }
+        : { status: filter, page, limit: PAGE_SIZE }
     const data = await fetchArticles(opts)
     setArticles(data)
     setLoading(false)
@@ -55,6 +84,7 @@ export default function Dashboard() {
   }
 
   const toggleStatus = async (article: Article) => {
+    if (article.status === 'ready_for_review' || article.status === 'scheduled') return
     const newStatus = article.status === 'published' ? 'draft' : 'published'
     await updateArticle(article.id, {
       status: newStatus,
@@ -67,6 +97,7 @@ export default function Dashboard() {
 
   const published = meta.counts?.published ?? 0
   const drafts = meta.counts?.draft ?? 0
+  const readyForReview = meta.counts?.ready_for_review ?? 0
   const scheduled = meta.counts?.scheduled ?? 0
   const totalAll = meta.counts?.all ?? meta.total
   const listTotal = meta.total
@@ -88,7 +119,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <div className="bg-white rounded-xl p-5 shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-blue-50 rounded-lg">
@@ -108,6 +139,17 @@ export default function Dashboard() {
             <div>
               <p className="text-2xl font-bold text-gray-900">{published}</p>
               <p className="text-xs text-gray-500">Published</p>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-5 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-sky-50 rounded-lg">
+              <ClipboardCheck className="w-5 h-5 text-sky-600" />
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">{readyForReview}</p>
+              <p className="text-xs text-gray-500">Ready for review</p>
             </div>
           </div>
         </div>
@@ -136,18 +178,23 @@ export default function Dashboard() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex items-center gap-1 mb-6 bg-white rounded-lg p-1 shadow-sm w-fit overflow-x-auto">
-        {(['all', 'published', 'draft', 'scheduled'] as const).map((f) => (
+      <div className="flex items-center gap-1 mb-6 bg-white rounded-lg p-1 shadow-sm w-fit max-w-full overflow-x-auto">
+        {FILTER_TABS.map((f) => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors capitalize ${
-              filter === f
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+              filter === f.id
                 ? 'bg-primary text-white'
                 : 'text-gray-500 hover:text-gray-900'
             }`}
           >
-            {f}
+            {f.label}
+            {f.id === 'ready_for_review' && readyForReview > 0 ? (
+              <span className="ml-1.5 inline-flex min-w-[1.25rem] justify-center rounded-full bg-white/20 px-1.5 text-[11px]">
+                {readyForReview}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -158,7 +205,9 @@ export default function Dashboard() {
           <div className="p-8 text-center text-gray-400">Loading articles...</div>
         ) : articles.length === 0 ? (
           <div className="p-8 text-center text-gray-400">
-            No articles found. Create your first article!
+            {filter === 'ready_for_review'
+              ? 'No articles waiting for review.'
+              : 'No articles found. Create your first article!'}
           </div>
         ) : (
           <table className="w-full min-w-[600px]">
@@ -185,7 +234,15 @@ export default function Dashboard() {
                       )}
                       <div>
                         <p className="font-medium text-gray-900 text-sm line-clamp-1">{article.title}</p>
-                        <p className="text-xs text-gray-400">{article.author}</p>
+                        <p className="text-xs text-gray-400">
+                          {article.author}
+                          {article.reviewedBy ? (
+                            <span className="text-emerald-600">
+                              {' '}
+                              · Reviewed by {article.reviewedBy}
+                            </span>
+                          ) : null}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -205,36 +262,33 @@ export default function Dashboard() {
                           </span>
                         )}
                       </div>
+                    ) : article.status === 'ready_for_review' ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                        <ClipboardCheck className="w-3 h-3" />
+                        Ready for review
+                      </span>
                     ) : canPublish ? (
                       <button
                         onClick={() => toggleStatus(article)}
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                          article.status === 'published'
-                            ? 'bg-green-50 text-green-700'
-                            : 'bg-yellow-50 text-yellow-700'
-                        }`}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusBadgeClass(article.status)}`}
                       >
                         {article.status === 'published' ? (
                           <CheckCircle className="w-3 h-3" />
                         ) : (
                           <Clock className="w-3 h-3" />
                         )}
-                        {article.status}
+                        {statusLabel(article.status)}
                       </button>
                     ) : (
                       <span
-                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
-                          article.status === 'published'
-                            ? 'bg-green-50 text-green-700'
-                            : 'bg-yellow-50 text-yellow-700'
-                        }`}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${statusBadgeClass(article.status)}`}
                       >
                         {article.status === 'published' ? (
                           <CheckCircle className="w-3 h-3" />
                         ) : (
                           <Clock className="w-3 h-3" />
                         )}
-                        {article.status}
+                        {statusLabel(article.status)}
                       </span>
                     )}
                   </td>

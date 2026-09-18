@@ -3,6 +3,7 @@ import ScrollToTop from './components/ScrollToTop'
 import Layout from './components/Layout'
 import AdminLayout from './components/AdminLayout'
 import ProtectedRoute from './components/ProtectedRoute'
+import { AuthProvider } from './hooks/useAuth'
 import Home from './pages/Home'
 import ArticlePage from './pages/ArticlePage'
 import CategoryPage from './pages/CategoryPage'
@@ -19,6 +20,7 @@ import ArticleEditor from './pages/admin/ArticleEditor'
 import AdminSettings from './pages/admin/AdminSettings'
 import MediaLibraryPage from './pages/admin/MediaLibraryPage'
 import AuthorManager from './pages/admin/AuthorManager'
+import MeetTheTeamPage from './pages/admin/MeetTheTeamPage'
 import TeamManager from './pages/admin/TeamManager'
 import ImportPage from './pages/admin/ImportPage'
 import QuizList from './pages/admin/QuizList'
@@ -45,9 +47,10 @@ import AuthorPage from './pages/AuthorPage'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <ScrollToTop />
-      <Routes>
+    <AuthProvider>
+      <BrowserRouter>
+        <ScrollToTop />
+        <Routes>
         {/* Public pages */}
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
@@ -95,6 +98,7 @@ export default function App() {
           <Route path="/admin/media" element={<MediaLibraryPage />} />
           <Route path="/admin/image-tools" element={<MediaLibraryPage />} />
           <Route path="/admin/authors" element={<AuthorManager />} />
+          <Route path="/admin/meet-the-team" element={<MeetTheTeamPage />} />
           <Route path="/admin/team" element={<TeamManager />} />
           <Route path="/admin/seo" element={<SEODashboard />} />
           <Route path="/admin/sitemap" element={<SitemapPage />} />
@@ -109,6 +113,7 @@ export default function App() {
           <Route path="/admin/quiz/edit/:id" element={<QuizEditor />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </AuthProvider>
   )
 }

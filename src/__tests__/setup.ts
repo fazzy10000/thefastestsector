@@ -4,7 +4,11 @@ import { afterEach, vi } from 'vitest'
 
 afterEach(() => {
   cleanup()
-  localStorage.clear()
+  try {
+    localStorage.clear()
+  } catch {
+    // Node may not expose localStorage without --localstorage-file
+  }
   document.documentElement.classList.remove('dark')
   vi.unstubAllGlobals()
 })

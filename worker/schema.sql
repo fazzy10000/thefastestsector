@@ -26,6 +26,25 @@ CREATE TABLE IF NOT EXISTS authors (
   linkedin TEXT NOT NULL DEFAULT ''
 );
 
+-- Curated Meet the Team page (About). Separate from article authors / admin users.
+CREATE TABLE IF NOT EXISTS team_page_members (
+  id TEXT PRIMARY KEY,
+  author_id TEXT NOT NULL DEFAULT '',
+  user_id TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL,
+  role_title TEXT NOT NULL DEFAULT '',
+  bio TEXT NOT NULL DEFAULT '',
+  avatar TEXT NOT NULL DEFAULT '',
+  twitter TEXT NOT NULL DEFAULT '',
+  instagram TEXT NOT NULL DEFAULT '',
+  linkedin TEXT NOT NULL DEFAULT '',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_team_page_sort ON team_page_members(sort_order);
+
 CREATE TABLE IF NOT EXISTS articles (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
@@ -40,7 +59,10 @@ CREATE TABLE IF NOT EXISTS articles (
   author_id TEXT NOT NULL DEFAULT '',
   editor TEXT NOT NULL DEFAULT '',
   editor_id TEXT NOT NULL DEFAULT '',
-  status TEXT NOT NULL DEFAULT 'draft',
+  reviewed_by TEXT NOT NULL DEFAULT '',
+  reviewed_by_id TEXT NOT NULL DEFAULT '',
+  reviewed_at INTEGER,
+  status TEXT NOT NULL DEFAULT 'draft', -- draft | ready_for_review | published | scheduled
   featured INTEGER NOT NULL DEFAULT 0,
   scheduled_at INTEGER,
   created_at INTEGER NOT NULL,

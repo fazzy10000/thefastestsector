@@ -7,12 +7,18 @@ export type ArticleListMeta = {
   total: number
   page: number
   limit: number
-  counts?: { all: number; published: number; draft: number; scheduled: number }
+  counts?: {
+    all: number
+    published: number
+    draft: number
+    ready_for_review: number
+    scheduled: number
+  }
 }
 
 export type FetchArticlesOpts = {
   category?: Category
-  status?: 'draft' | 'published' | 'scheduled'
+  status?: 'draft' | 'ready_for_review' | 'published' | 'scheduled'
   limit?: number
   page?: number
   featured?: boolean

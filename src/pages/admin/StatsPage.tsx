@@ -30,6 +30,7 @@ type TrafficData = {
 }
 
 type InsightsData = {
+  days: number | null
   allTime: { views: number; visitors: number }
   bestDay: { day: string; views: number } | null
   byCategory: { category: string; views: number }[]
@@ -55,6 +56,17 @@ const TAB_LABELS: Record<Tab, string> = {
   traffic: 'Traffic',
   insights: 'Insights',
   subscribers: 'Subscribers',
+}
+
+const TRAFFIC_DAY_OPTIONS = [7, 30, 90, 365] as const
+const INSIGHTS_DAY_OPTIONS: { value: number | null; label: string }[] = [
+  { value: 90, label: '90 days' },
+  { value: 365, label: '1 year' },
+  { value: null, label: 'All time' },
+]
+
+function periodLabel(days: number) {
+  return days === 365 ? '1 year' : `${days} days`
 }
 
 // ---------- Small shared UI ----------
@@ -106,32 +118,39 @@ function BarChart({ points, metric }: { points: DailyPoint[]; metric: 'views' | 
       </p>
     )
   }
+  const spanYears =
+    new Date(points[0].day).getUTCFullYear() !==
+    new Date(points[points.length - 1].day).getUTCFullYear()
+  const tickFmt = spanYears || points.length > 90 ? 'MMM d, yyyy' : 'MMM d'
+  const barMinWidth = points.length > 120 ? 2 : points.length > 60 ? 3 : 4
   return (
-    <div>
-      <div className="flex items-end gap-[2px]" style={{ height: CHART_HEIGHT }}>
-        {points.map((p) => {
-          const value = p[metric]
-          const px = value > 0 ? Math.max(4, (value / max) * (CHART_HEIGHT - 16)) : 2
-          return (
-            <div
-              key={p.day}
-              className="flex-1 min-w-[3px] flex items-end"
-              style={{ height: CHART_HEIGHT }}
-              title={`${format(new Date(p.day), 'EEE MMM d')}: ${p.views} views, ${p.visitors} visitors`}
-            >
+    <div className="overflow-x-auto">
+      <div style={{ minWidth: points.length > 90 ? points.length * barMinWidth : undefined }}>
+        <div className="flex items-end gap-[2px]" style={{ height: CHART_HEIGHT }}>
+          {points.map((p) => {
+            const value = p[metric]
+            const px = value > 0 ? Math.max(4, (value / max) * (CHART_HEIGHT - 16)) : 2
+            return (
               <div
-                className={`w-full rounded-t transition-colors ${
-                  value > 0 ? 'bg-primary/80 hover:bg-primary' : 'bg-gray-200'
-                }`}
-                style={{ height: px }}
-              />
-            </div>
-          )
-        })}
-      </div>
-      <div className="flex justify-between mt-2 text-[10px] text-gray-400">
-        <span>{format(new Date(points[0].day), 'MMM d')}</span>
-        <span>{format(new Date(points[points.length - 1].day), 'MMM d')}</span>
+                key={p.day}
+                className="flex-1 flex items-end"
+                style={{ height: CHART_HEIGHT, minWidth: barMinWidth }}
+                title={`${format(new Date(p.day), 'EEE MMM d, yyyy')}: ${p.views} views, ${p.visitors} visitors`}
+              >
+                <div
+                  className={`w-full rounded-t transition-colors ${
+                    value > 0 ? 'bg-primary/80 hover:bg-primary' : 'bg-gray-200'
+                  }`}
+                  style={{ height: px }}
+                />
+              </div>
+            )
+          })}
+        </div>
+        <div className="flex justify-between mt-2 text-[10px] text-gray-400">
+          <span>{format(new Date(points[0].day), tickFmt)}</span>
+          <span>{format(new Date(points[points.length - 1].day), tickFmt)}</span>
+        </div>
       </div>
     </div>
   )
@@ -278,16 +297,16 @@ function TrafficTab() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm w-fit">
-        {[7, 30, 90].map((d) => (
+      <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm w-fit max-w-full overflow-x-auto">
+        {TRAFFIC_DAY_OPTIONS.map((d) => (
           <button
             key={d}
             onClick={() => setDays(d)}
-            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
               days === d ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-900'
             }`}
           >
-            {d} days
+            {periodLabel(d)}
           </button>
         ))}
       </div>
@@ -354,7 +373,7 @@ function TrafficTab() {
           </div>
 
           <p className="text-xs text-gray-400 -mt-2">
-            Change badges compare with the previous {days} days.
+            Change badges compare with the previous {periodLabel(days)}.
           </p>
 
           <div className="bg-white rounded-xl shadow-sm p-5">
@@ -460,33 +479,59 @@ function TrafficTab() {
 // ---------- Insights tab ----------
 
 function InsightsTab() {
+  const [days, setDays] = useState<number | null>(365)
   const [data, setData] = useState<InsightsData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api<InsightsData>('/api/stats/insights')
-      .then(setData)
+    let cancelled = false
+    setLoading(true)
+    const qs = days === null ? 'days=all' : `days=${days}`
+    api<InsightsData>(`/api/stats/insights?${qs}`)
+      .then((d) => {
+        if (!cancelled) setData(d)
+      })
       .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [])
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [days])
 
-  if (loading) return <div className="p-8 text-center text-gray-400">Loading insights...</div>
+  if (loading && !data) return <div className="p-8 text-center text-gray-400">Loading insights...</div>
 
   const maxPosts = Math.max(1, ...(data?.monthlyPosts || []).map((m) => m.posts))
+  const rangeLabel = days === null ? 'All-time' : days === 365 ? 'Last year' : `Last ${days} days`
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center gap-1 bg-white rounded-lg p-1 shadow-sm w-fit max-w-full overflow-x-auto">
+        {INSIGHTS_DAY_OPTIONS.map((opt) => (
+          <button
+            key={String(opt.value)}
+            onClick={() => setDays(opt.value)}
+            className={`px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+              days === opt.value ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-900'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard
           icon={Eye}
           value={(data?.allTime.views || 0).toLocaleString()}
-          label="All-time views"
+          label={`${rangeLabel} views`}
           tint="bg-blue-50 text-blue-600"
         />
         <StatCard
           icon={Users}
           value={(data?.allTime.visitors || 0).toLocaleString()}
-          label="All-time visitors"
+          label={`${rangeLabel} visitors`}
           tint="bg-green-50 text-green-600"
         />
         <StatCard

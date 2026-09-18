@@ -40,6 +40,7 @@ import {
   RotateCcw,
   ExternalLink,
   FolderOpen,
+  ClipboardCheck,
 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
@@ -51,6 +52,8 @@ function slugify(text: string) {
     .replace(/-+/g, '-')
     .trim()
 }
+
+type ArticleStatus = Article['status']
 
 export default function ArticleEditor() {
   const { id } = useParams<{ id: string }>()
@@ -74,8 +77,11 @@ export default function ArticleEditor() {
   const [authorId, setAuthorId] = useState('')
   const [editorName, setEditorName] = useState('')
   const [editorId, setEditorId] = useState('')
+  const [reviewedBy, setReviewedBy] = useState('')
+  const [reviewedById, setReviewedById] = useState('')
+  const [reviewedAt, setReviewedAt] = useState<number | null>(null)
   const [featuredImage, setFeaturedImage] = useState('')
-  const [status, setStatus] = useState<'draft' | 'published' | 'scheduled'>('draft')
+  const [status, setStatus] = useState<ArticleStatus>('draft')
   const [featured, setFeatured] = useState(false)
   const [scheduledAt, setScheduledAt] = useState<string>('')
   const [saving, setSaving] = useState(false)
@@ -115,6 +121,9 @@ export default function ArticleEditor() {
           setAuthorId(article.authorId || '')
           setEditorName(article.editor || '')
           setEditorId(article.editorId || '')
+          setReviewedBy(article.reviewedBy || '')
+          setReviewedById(article.reviewedById || '')
+          setReviewedAt(article.reviewedAt ?? null)
           setFeaturedImage(article.featuredImage)
           setStatus(article.status)
           setFeatured(article.featured)
@@ -161,7 +170,7 @@ export default function ArticleEditor() {
     }
   }, [uploadImage, editor, createAsset, uid])
 
-  const handleSave = async (saveStatus?: 'draft' | 'published' | 'scheduled') => {
+  const handleSave = async (saveStatus?: ArticleStatus) => {
     if (!editor) return
     if (!title.trim()) {
       setSaveError('Please add a title before saving.')
@@ -180,12 +189,27 @@ export default function ArticleEditor() {
       // Authors saving content on a live piece must not unpublish it.
       if (status === 'published' || status === 'scheduled') {
         finalStatus = status
-      } else {
+      } else if (saveStatus === 'ready_for_review') {
+        finalStatus = 'ready_for_review'
+      } else if (saveStatus === 'draft') {
         finalStatus = 'draft'
+      } else {
+        // Plain save: keep ready_for_review if already submitted, otherwise draft
+        finalStatus = status === 'ready_for_review' ? 'ready_for_review' : 'draft'
       }
     }
 
     const now = Date.now()
+    const completingReview =
+      canPublish &&
+      status === 'ready_for_review' &&
+      (finalStatus === 'published' || finalStatus === 'scheduled' || finalStatus === 'draft')
+    const reviewerName = user?.displayName || user?.email || ''
+    const nextReviewedBy = completingReview ? reviewerName : reviewedBy
+    const nextReviewedAt = completingReview ? now : reviewedAt
+    // Public “Edited by” credit when empty and a review was just completed
+    const nextEditorName =
+      completingReview && !editorName.trim() && reviewerName ? reviewerName : editorName.trim()
 
     if (isEditing && id) {
       const editedBy = user?.email || user?.displayName || 'demo'
@@ -216,8 +240,11 @@ export default function ArticleEditor() {
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       author: author.trim(),
       authorId,
-      editor: editorName.trim(),
+      editor: nextEditorName,
       editorId,
+      reviewedBy: nextReviewedBy,
+      reviewedById: completingReview ? uid : reviewedById,
+      reviewedAt: nextReviewedAt,
       status: finalStatus,
       featured,
       scheduledAt: scheduledTimestamp,
@@ -302,12 +329,18 @@ export default function ArticleEditor() {
             </button>
           )}
           <button
-            onClick={() => handleSave(canPublish ? 'draft' : undefined)}
+            onClick={() =>
+              handleSave(
+                canPublish && status === 'ready_for_review' ? 'ready_for_review' : 'draft',
+              )
+            }
             disabled={saving}
             className="flex items-center gap-1.5 px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
             {!canPublish && (status === 'published' || status === 'scheduled') ? (
+              'Save'
+            ) : canPublish && status === 'ready_for_review' ? (
               'Save'
             ) : (
               <>
@@ -315,6 +348,27 @@ export default function ArticleEditor() {
               </>
             )}
           </button>
+          {status !== 'published' && status !== 'scheduled' && (
+            <button
+              onClick={() => handleSave('ready_for_review')}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-2 bg-sky-600 text-white rounded-lg text-sm font-medium hover:bg-sky-700 transition-colors disabled:opacity-50"
+            >
+              <ClipboardCheck className="w-4 h-4" />
+              {status === 'ready_for_review' ? 'Update for review' : 'Ready for review'}
+            </button>
+          )}
+          {canPublish && status === 'ready_for_review' && (
+            <button
+              onClick={() => handleSave('draft')}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3 py-2 border border-sky-300 text-sky-700 rounded-lg text-sm font-medium hover:bg-sky-50 transition-colors disabled:opacity-50"
+              title="Send back to the author as a draft"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span className="hidden sm:inline">Return to draft</span>
+            </button>
+          )}
           {canPublish && (
             <button
               onClick={() => handleSave('published')}
@@ -327,6 +381,26 @@ export default function ArticleEditor() {
           )}
         </div>
       </div>
+
+      {status === 'ready_for_review' && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-sky-50 border border-sky-200 text-sm text-sky-800 flex items-start gap-2">
+          <ClipboardCheck className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>
+            {canPublish
+              ? 'This article is ready for review. Edit as needed, then publish or schedule it — or return it to draft for the author.'
+              : 'Submitted for editor review. You can still update the draft; it appears under Ready for review on the dashboard.'}
+          </span>
+        </div>
+      )}
+
+      {reviewedBy && status !== 'ready_for_review' && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-emerald-50 border border-emerald-200 text-sm text-emerald-800">
+          Reviewed by <span className="font-semibold">{reviewedBy}</span>
+          {reviewedAt
+            ? ` · ${formatDistanceToNow(new Date(reviewedAt), { addSuffix: true })}`
+            : ''}
+        </div>
+      )}
 
       {saveError && (
         <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
@@ -649,7 +723,7 @@ export default function ArticleEditor() {
                 Publishing
               </h3>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Save your draft here. Editors and admins handle publishing and scheduling.
+                Save your draft, then submit it for review when ready. Editors and admins handle publishing and scheduling.
               </p>
             </div>
           )}
@@ -700,7 +774,18 @@ export default function ArticleEditor() {
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
-            <p className="text-xs text-gray-400 mt-1">Shown as a smaller credit under Written by</p>
+            <p className="text-xs text-gray-400 mt-1">
+              Public byline credit under Written by. Auto-filled when an editor/admin completes a review
+              if left blank.
+            </p>
+            {reviewedBy ? (
+              <p className="text-xs text-emerald-700 mt-2">
+                Admin credit: reviewed by {reviewedBy}
+                {reviewedAt
+                  ? ` (${formatDistanceToNow(new Date(reviewedAt), { addSuffix: true })})`
+                  : ''}
+              </p>
+            ) : null}
           </div>
 
           {/* Tags */}

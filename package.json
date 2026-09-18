@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "preview": "vite preview",
-    "deploy": "npm run build && npx wrangler deploy",
+    "deploy": "npx wrangler deploy",
     "import:wp": "node scripts/import-wp.mjs",
     "seed:d1": "node scripts/seed-d1.mjs",
     "db:migrate": "npx wrangler d1 execute thefastestsector --local --file=worker/schema.sql",

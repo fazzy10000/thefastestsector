@@ -32,6 +32,9 @@ type ArticleRow = {
   author_id: string
   editor?: string
   editor_id?: string
+  reviewed_by?: string
+  reviewed_by_id?: string
+  reviewed_at?: number | null
   status: string
   featured: number
   scheduled_at: number | null
@@ -55,6 +58,9 @@ function mapArticle(row: ArticleRow) {
     authorId: row.author_id,
     editor: row.editor ?? '',
     editorId: row.editor_id ?? '',
+    reviewedBy: row.reviewed_by ?? '',
+    reviewedById: row.reviewed_by_id ?? '',
+    reviewedAt: row.reviewed_at ?? null,
     status: row.status,
     featured: Boolean(row.featured),
     scheduledAt: row.scheduled_at,
@@ -88,6 +94,21 @@ async function ensureArticleEditorColumns(env: Env) {
   }
   try {
     await env.DB.prepare(`ALTER TABLE articles ADD COLUMN editor_id TEXT NOT NULL DEFAULT ''`).run()
+  } catch {
+    // column already exists
+  }
+  try {
+    await env.DB.prepare(`ALTER TABLE articles ADD COLUMN reviewed_by TEXT NOT NULL DEFAULT ''`).run()
+  } catch {
+    // column already exists
+  }
+  try {
+    await env.DB.prepare(`ALTER TABLE articles ADD COLUMN reviewed_by_id TEXT NOT NULL DEFAULT ''`).run()
+  } catch {
+    // column already exists
+  }
+  try {
+    await env.DB.prepare(`ALTER TABLE articles ADD COLUMN reviewed_at INTEGER`).run()
   } catch {
     // column already exists
   }
@@ -195,6 +216,87 @@ function mapAd(row: AdRow) {
   }
 }
 
+async function ensureTeamPageTable(env: Env) {
+  await env.DB.prepare(
+    `CREATE TABLE IF NOT EXISTS team_page_members (
+      id TEXT PRIMARY KEY,
+      author_id TEXT NOT NULL DEFAULT '',
+      user_id TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL,
+      role_title TEXT NOT NULL DEFAULT '',
+      bio TEXT NOT NULL DEFAULT '',
+      avatar TEXT NOT NULL DEFAULT '',
+      twitter TEXT NOT NULL DEFAULT '',
+      instagram TEXT NOT NULL DEFAULT '',
+      linkedin TEXT NOT NULL DEFAULT '',
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )`,
+  ).run()
+  try {
+    await env.DB.prepare(
+      `ALTER TABLE team_page_members ADD COLUMN user_id TEXT NOT NULL DEFAULT ''`,
+    ).run()
+  } catch {
+    // column already exists
+  }
+  try {
+    await env.DB.prepare(
+      `CREATE INDEX IF NOT EXISTS idx_team_page_sort ON team_page_members(sort_order)`,
+    ).run()
+  } catch {
+    // index may already exist
+  }
+}
+
+type TeamPageMemberRow = {
+  id: string
+  author_id: string
+  user_id?: string
+  name: string
+  role_title: string
+  bio: string
+  avatar: string
+  twitter: string
+  instagram: string
+  linkedin: string
+  sort_order: number
+  created_at: number
+  updated_at: number
+}
+
+function mapTeamPageMember(row: TeamPageMemberRow) {
+  return {
+    id: row.id,
+    authorId: row.author_id || '',
+    userId: row.user_id || '',
+    name: row.name,
+    roleTitle: row.role_title || '',
+    bio: row.bio || '',
+    avatar: rewriteMediaUrls(row.avatar || ''),
+    twitter: row.twitter || '',
+    instagram: row.instagram || '',
+    linkedin: row.linkedin || '',
+    sortOrder: row.sort_order ?? 0,
+  }
+}
+
+function staffRoleTitle(role: string): string {
+  switch (role) {
+    case 'admin':
+      return 'Admin'
+    case 'editor':
+      return 'Editor'
+    case 'seo':
+      return 'SEO'
+    case 'author':
+      return 'Author'
+    default:
+      return role
+  }
+}
+
 async function publishDueScheduled(env: Env) {
   const now = Date.now()
   await env.DB.prepare(
@@ -215,6 +317,7 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
   try {
     await ensureArticleEditorColumns(env)
     await ensureStatsAdsTables(env)
+    await ensureTeamPageTable(env)
     await ensureScheduleTable(env.DB)
 
     // --- Public race calendar (D1 snapshot; Worker cron refreshes weekly) ---
@@ -670,30 +773,75 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
     if (path === '/api/stats/insights' && method === 'GET') {
       const auth = await requireUser(request, env, 'view_stats')
       if ('error' in auth) return auth.error
-      const [allTime, bestDay, byCategory, byAuthor, monthly, subscribers, firstView] =
-        await Promise.all([
-          env.DB.prepare(
+      const daysRaw = url.searchParams.get('days')
+      const days =
+        daysRaw === null || daysRaw === '' || daysRaw === 'all'
+          ? null
+          : Math.min(Math.max(Number(daysRaw) || 0, 1), 365)
+      const since = days ? Date.now() - days * 86_400_000 : null
+      const monthLimit = days ? Math.max(1, Math.ceil(days / 30)) : 12
+
+      const totalsStmt = since
+        ? env.DB.prepare(
+            `SELECT COUNT(*) AS views, COUNT(DISTINCT visitor_id) AS visitors
+             FROM page_views WHERE created_at >= ?`,
+          ).bind(since)
+        : env.DB.prepare(
             `SELECT COUNT(*) AS views, COUNT(DISTINCT visitor_id) AS visitors FROM page_views`,
-          ).first<{ views: number; visitors: number }>(),
-          env.DB.prepare(
+          )
+      const bestDayStmt = since
+        ? env.DB.prepare(
+            `SELECT day, COUNT(*) AS views FROM page_views
+             WHERE created_at >= ? GROUP BY day ORDER BY views DESC LIMIT 1`,
+          ).bind(since)
+        : env.DB.prepare(
             `SELECT day, COUNT(*) AS views FROM page_views GROUP BY day ORDER BY views DESC LIMIT 1`,
-          ).first<{ day: string; views: number }>(),
-          env.DB.prepare(
+          )
+      const byCategoryStmt = since
+        ? env.DB.prepare(
+            `SELECT a.category, COUNT(*) AS views FROM page_views pv
+             JOIN articles a ON a.slug = pv.article_slug
+             WHERE pv.article_slug != '' AND pv.created_at >= ?
+             GROUP BY a.category ORDER BY views DESC`,
+          ).bind(since)
+        : env.DB.prepare(
             `SELECT a.category, COUNT(*) AS views FROM page_views pv
              JOIN articles a ON a.slug = pv.article_slug
              WHERE pv.article_slug != '' GROUP BY a.category ORDER BY views DESC`,
-          ).all<{ category: string; views: number }>(),
-          env.DB.prepare(
+          )
+      const byAuthorStmt = since
+        ? env.DB.prepare(
+            `SELECT a.author, COUNT(*) AS views FROM page_views pv
+             JOIN articles a ON a.slug = pv.article_slug
+             WHERE pv.article_slug != '' AND a.author != '' AND pv.created_at >= ?
+             GROUP BY a.author ORDER BY views DESC LIMIT 10`,
+          ).bind(since)
+        : env.DB.prepare(
             `SELECT a.author, COUNT(*) AS views FROM page_views pv
              JOIN articles a ON a.slug = pv.article_slug
              WHERE pv.article_slug != '' AND a.author != ''
              GROUP BY a.author ORDER BY views DESC LIMIT 10`,
-          ).all<{ author: string; views: number }>(),
-          env.DB.prepare(
+          )
+      const monthlyStmt = since
+        ? env.DB.prepare(
+            `SELECT strftime('%Y-%m', published_at / 1000, 'unixepoch') AS month, COUNT(*) AS posts
+             FROM articles
+             WHERE status = 'published' AND published_at IS NOT NULL AND published_at >= ?
+             GROUP BY month ORDER BY month DESC LIMIT ?`,
+          ).bind(since, monthLimit)
+        : env.DB.prepare(
             `SELECT strftime('%Y-%m', published_at / 1000, 'unixepoch') AS month, COUNT(*) AS posts
              FROM articles WHERE status = 'published' AND published_at IS NOT NULL
-             GROUP BY month ORDER BY month DESC LIMIT 12`,
-          ).all<{ month: string; posts: number }>(),
+             GROUP BY month ORDER BY month DESC LIMIT ?`,
+          ).bind(monthLimit)
+
+      const [allTime, bestDay, byCategory, byAuthor, monthly, subscribers, firstView] =
+        await Promise.all([
+          totalsStmt.first<{ views: number; visitors: number }>(),
+          bestDayStmt.first<{ day: string; views: number }>(),
+          byCategoryStmt.all<{ category: string; views: number }>(),
+          byAuthorStmt.all<{ author: string; views: number }>(),
+          monthlyStmt.all<{ month: string; posts: number }>(),
           env.DB.prepare(
             `SELECT COUNT(*) AS count FROM newsletter_subscribers WHERE status != 'unsubscribed'`,
           ).first<{
@@ -704,6 +852,7 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
           }>(),
         ])
       return json({
+        days,
         allTime: { views: allTime?.views || 0, visitors: allTime?.visitors || 0 },
         bestDay: bestDay || null,
         byCategory: byCategory.results || [],
@@ -888,8 +1037,8 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
         fields === 'full'
           ? 'SELECT * FROM articles'
           : `SELECT id, title, slug, excerpt, '' AS content, featured_image, category, content_type,
-             tags_json, author, author_id, editor, editor_id, status, featured, scheduled_at,
-             created_at, updated_at, published_at FROM articles`
+             tags_json, author, author_id, editor, editor_id, reviewed_by, reviewed_by_id, reviewed_at,
+             status, featured, scheduled_at, created_at, updated_at, published_at FROM articles`
       let sql = selectCols + where + ' ORDER BY COALESCE(published_at, created_at) DESC'
       const listBinds = [...binds]
       if (limit > 0) {
@@ -900,7 +1049,15 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
         .bind(...listBinds)
         .all<ArticleRow>()
 
-      let counts: { all: number; published: number; draft: number; scheduled: number } | undefined
+      let counts:
+        | {
+            all: number
+            published: number
+            draft: number
+            ready_for_review: number
+            scheduled: number
+          }
+        | undefined
       if (staff) {
         const { results: statusRows } = await env.DB.prepare(
           `SELECT status, COUNT(*) AS c FROM articles GROUP BY status`,
@@ -909,8 +1066,13 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
         counts = {
           published: byStatus.published || 0,
           draft: byStatus.draft || 0,
+          ready_for_review: byStatus.ready_for_review || 0,
           scheduled: byStatus.scheduled || 0,
-          all: (byStatus.published || 0) + (byStatus.draft || 0) + (byStatus.scheduled || 0),
+          all:
+            (byStatus.published || 0) +
+            (byStatus.draft || 0) +
+            (byStatus.ready_for_review || 0) +
+            (byStatus.scheduled || 0),
         }
       }
 
@@ -929,6 +1091,7 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
       const body = await parseJson<Record<string, unknown>>(request)
       if (!body?.title || !body?.slug) return json({ error: 'Title and slug required' }, { status: 400 })
       const status = String(body.status || 'draft')
+      const allowedAuthorStatuses = new Set(['draft', 'ready_for_review'])
       if (
         (status === 'published' || status === 'scheduled') &&
         !can(auth.user.role, 'publish_article')
@@ -938,13 +1101,17 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
           { status: 403 },
         )
       }
+      if (!can(auth.user.role, 'publish_article') && !allowedAuthorStatuses.has(status)) {
+        return json({ error: 'Authors can only save drafts or submit for review' }, { status: 403 })
+      }
       const articleId = id()
       const now = Date.now()
       await env.DB.prepare(
         `INSERT INTO articles
          (id, title, slug, excerpt, content, featured_image, category, content_type, tags_json,
-          author, author_id, editor, editor_id, status, featured, scheduled_at, created_at, updated_at, published_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          author, author_id, editor, editor_id, reviewed_by, reviewed_by_id, reviewed_at,
+          status, featured, scheduled_at, created_at, updated_at, published_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
         .bind(
           articleId,
@@ -960,6 +1127,9 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
           String(body.authorId || ''),
           String(body.editor || ''),
           String(body.editorId || ''),
+          String(body.reviewedBy || ''),
+          String(body.reviewedById || ''),
+          body.reviewedAt ?? null,
           status,
           body.featured ? 1 : 0,
           body.scheduledAt ?? null,
@@ -1016,6 +1186,42 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
             { status: 403 },
           )
         }
+        if (
+          statusChanging &&
+          !can(auth.user.role, 'publish_article') &&
+          !['draft', 'ready_for_review'].includes(nextStatus)
+        ) {
+          return json({ error: 'Authors can only save drafts or submit for review' }, { status: 403 })
+        }
+
+        let editor = body.editor !== undefined ? String(body.editor) : (existing.editor ?? '')
+        let editorId = body.editorId !== undefined ? String(body.editorId) : (existing.editor_id ?? '')
+        let reviewedBy =
+          body.reviewedBy !== undefined ? String(body.reviewedBy) : (existing.reviewed_by ?? '')
+        let reviewedById =
+          body.reviewedById !== undefined
+            ? String(body.reviewedById)
+            : (existing.reviewed_by_id ?? '')
+        let reviewedAt =
+          body.reviewedAt !== undefined
+            ? (body.reviewedAt as number | null)
+            : (existing.reviewed_at ?? null)
+
+        // Completing a review: leaving ready_for_review via publish / schedule / return to draft
+        const completingReview =
+          existing.status === 'ready_for_review' &&
+          nextStatus !== 'ready_for_review' &&
+          can(auth.user.role, 'publish_article')
+        if (completingReview) {
+          const creditName = auth.user.displayName || auth.user.email
+          reviewedBy = creditName
+          reviewedById = auth.user.id
+          reviewedAt = Date.now()
+          if (!editor.trim()) {
+            editor = creditName
+          }
+        }
+
         const next = {
           title: body.title !== undefined ? String(body.title) : existing.title,
           slug: body.slug !== undefined ? String(body.slug) : existing.slug,
@@ -1029,8 +1235,11 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
           tags_json: body.tags !== undefined ? JSON.stringify(body.tags) : existing.tags_json,
           author: body.author !== undefined ? String(body.author) : existing.author,
           author_id: body.authorId !== undefined ? String(body.authorId) : existing.author_id,
-          editor: body.editor !== undefined ? String(body.editor) : (existing.editor ?? ''),
-          editor_id: body.editorId !== undefined ? String(body.editorId) : (existing.editor_id ?? ''),
+          editor,
+          editor_id: editorId,
+          reviewed_by: reviewedBy,
+          reviewed_by_id: reviewedById,
+          reviewed_at: reviewedAt,
           status: nextStatus,
           featured: body.featured !== undefined ? (body.featured ? 1 : 0) : existing.featured,
           scheduled_at:
@@ -1041,7 +1250,8 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
         }
         await env.DB.prepare(
           `UPDATE articles SET title=?, slug=?, excerpt=?, content=?, featured_image=?, category=?,
-           content_type=?, tags_json=?, author=?, author_id=?, editor=?, editor_id=?, status=?, featured=?,
+           content_type=?, tags_json=?, author=?, author_id=?, editor=?, editor_id=?,
+           reviewed_by=?, reviewed_by_id=?, reviewed_at=?, status=?, featured=?,
            scheduled_at=?, published_at=?, updated_at=? WHERE id=?`,
         )
           .bind(
@@ -1057,6 +1267,9 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
             next.author_id,
             next.editor,
             next.editor_id,
+            next.reviewed_by,
+            next.reviewed_by_id,
+            next.reviewed_at,
             next.status,
             next.featured,
             next.scheduled_at,
@@ -1198,6 +1411,301 @@ export async function handleApi(request: Request, env: Env, url: URL): Promise<R
       if ('error' in auth) return auth.error
       await env.DB.prepare('DELETE FROM authors WHERE id = ?').bind(authorMatch[1]).run()
       return json({ ok: true })
+    }
+
+    // --- Meet the Team page (About) ---
+    if (path === '/api/team-page' && method === 'GET') {
+      let { results } = await env.DB.prepare(
+        'SELECT * FROM team_page_members ORDER BY sort_order ASC, name ASC',
+      ).all<TeamPageMemberRow>()
+
+      // First visit: seed from Authors so admin + public match the existing About roster
+      if (!(results || []).length) {
+        const { results: authors } = await env.DB.prepare(
+          'SELECT * FROM authors ORDER BY name ASC',
+        ).all<{
+          id: string
+          name: string
+          bio: string
+          avatar: string
+          twitter: string
+          instagram: string
+          linkedin: string
+        }>()
+        if ((authors || []).length) {
+          const now = Date.now()
+          await env.DB.batch(
+            (authors || []).map((a, index) =>
+              env.DB.prepare(
+                `INSERT INTO team_page_members
+                 (id, author_id, user_id, name, role_title, bio, avatar, twitter, instagram, linkedin, sort_order, created_at, updated_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+              ).bind(
+                id(),
+                a.id,
+                '',
+                a.name,
+                '',
+                a.bio || '',
+                a.avatar || '',
+                a.twitter || '',
+                a.instagram || '',
+                a.linkedin || '',
+                index,
+                now,
+                now,
+              ),
+            ),
+          )
+          ;({ results } = await env.DB.prepare(
+            'SELECT * FROM team_page_members ORDER BY sort_order ASC, name ASC',
+          ).all<TeamPageMemberRow>())
+        }
+      }
+
+      return json({ members: (results || []).map(mapTeamPageMember) })
+    }
+
+    if (path === '/api/team-page' && method === 'PUT') {
+      const auth = await requireUser(request, env, 'manage_authors')
+      if ('error' in auth) return auth.error
+      const body = await parseJson<{
+        members?: Array<{
+          id?: string
+          authorId?: string
+          userId?: string
+          name?: string
+          roleTitle?: string
+          bio?: string
+          avatar?: string
+          twitter?: string
+          instagram?: string
+          linkedin?: string
+        }>
+      }>(request)
+      const members = Array.isArray(body?.members) ? body.members : null
+      if (!members) return json({ error: 'members array required' }, { status: 400 })
+      for (const m of members) {
+        if (!m?.name?.trim()) return json({ error: 'Each member needs a name' }, { status: 400 })
+      }
+      const now = Date.now()
+      const stmts = [
+        env.DB.prepare('DELETE FROM team_page_members'),
+        ...members.map((m, index) =>
+          env.DB.prepare(
+            `INSERT INTO team_page_members
+             (id, author_id, user_id, name, role_title, bio, avatar, twitter, instagram, linkedin, sort_order, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ).bind(
+            m.id || id(),
+            String(m.authorId || ''),
+            String(m.userId || ''),
+            String(m.name).trim(),
+            String(m.roleTitle || ''),
+            String(m.bio || ''),
+            String(m.avatar || ''),
+            String(m.twitter || ''),
+            String(m.instagram || ''),
+            String(m.linkedin || ''),
+            index,
+            now,
+            now,
+          ),
+        ),
+      ]
+      await env.DB.batch(stmts)
+      const { results } = await env.DB.prepare(
+        'SELECT * FROM team_page_members ORDER BY sort_order ASC, name ASC',
+      ).all<TeamPageMemberRow>()
+      return json({ members: (results || []).map(mapTeamPageMember) })
+    }
+
+    if (path === '/api/team-page/import-authors' && method === 'POST') {
+      const auth = await requireUser(request, env, 'manage_authors')
+      if ('error' in auth) return auth.error
+      const body = await parseJson<{ authorIds?: string[] }>(request)
+      const authorIds = Array.isArray(body?.authorIds) ? body.authorIds.filter(Boolean) : []
+      const authors =
+        authorIds.length > 0
+          ? (
+              await env.DB.prepare(
+                `SELECT * FROM authors WHERE id IN (${authorIds.map(() => '?').join(',')})`,
+              )
+                .bind(...authorIds)
+                .all<{
+                  id: string
+                  name: string
+                  bio: string
+                  avatar: string
+                  twitter: string
+                  instagram: string
+                  linkedin: string
+                }>()
+            ).results || []
+          : (
+              await env.DB.prepare('SELECT * FROM authors ORDER BY name ASC').all<{
+                id: string
+                name: string
+                bio: string
+                avatar: string
+                twitter: string
+                instagram: string
+                linkedin: string
+              }>()
+            ).results || []
+
+      const existing = await env.DB.prepare(
+        'SELECT author_id, user_id, sort_order FROM team_page_members',
+      ).all<{
+        author_id: string
+        user_id: string
+        sort_order: number
+      }>()
+      const already = new Set(
+        (existing.results || []).map((r) => r.author_id).filter((aid) => aid && aid.length > 0),
+      )
+      let nextOrder =
+        (existing.results || []).reduce((max, r) => Math.max(max, r.sort_order ?? 0), -1) + 1
+      const now = Date.now()
+      const inserts = authors
+        .filter((a) => !already.has(a.id))
+        .map((a) => {
+          const order = nextOrder++
+          return env.DB.prepare(
+            `INSERT INTO team_page_members
+             (id, author_id, user_id, name, role_title, bio, avatar, twitter, instagram, linkedin, sort_order, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ).bind(
+            id(),
+            a.id,
+            '',
+            a.name,
+            'Writer',
+            a.bio || '',
+            a.avatar || '',
+            a.twitter || '',
+            a.instagram || '',
+            a.linkedin || '',
+            order,
+            now,
+            now,
+          )
+        })
+      if (inserts.length) await env.DB.batch(inserts)
+      const { results } = await env.DB.prepare(
+        'SELECT * FROM team_page_members ORDER BY sort_order ASC, name ASC',
+      ).all<TeamPageMemberRow>()
+      return json({
+        members: (results || []).map(mapTeamPageMember),
+        imported: inserts.length,
+      })
+    }
+
+    if (path === '/api/team-page/import-staff' && method === 'POST') {
+      const auth = await requireUser(request, env, 'manage_authors')
+      if ('error' in auth) return auth.error
+      const body = await parseJson<{ userIds?: string[] }>(request)
+      const userIds = Array.isArray(body?.userIds) ? body.userIds.filter(Boolean) : []
+      const staff =
+        userIds.length > 0
+          ? (
+              await env.DB.prepare(
+                `SELECT id, email, display_name, role FROM users WHERE id IN (${userIds.map(() => '?').join(',')})`,
+              )
+                .bind(...userIds)
+                .all<{ id: string; email: string; display_name: string; role: string }>()
+            ).results || []
+          : (
+              await env.DB.prepare(
+                `SELECT id, email, display_name, role FROM users
+                 WHERE role IN ('admin', 'editor', 'seo', 'author')
+                 ORDER BY display_name ASC, email ASC`,
+              ).all<{ id: string; email: string; display_name: string; role: string }>()
+            ).results || []
+
+      const existing = await env.DB.prepare(
+        'SELECT author_id, user_id, sort_order FROM team_page_members',
+      ).all<{
+        author_id: string
+        user_id: string
+        sort_order: number
+      }>()
+      const alreadyUsers = new Set(
+        (existing.results || []).map((r) => r.user_id).filter((uid) => uid && uid.length > 0),
+      )
+      const alreadyNames = new Set(
+        (
+          await env.DB.prepare('SELECT lower(name) AS n FROM team_page_members').all<{ n: string }>()
+        ).results?.map((r) => r.n) || [],
+      )
+      let nextOrder =
+        (existing.results || []).reduce((max, r) => Math.max(max, r.sort_order ?? 0), -1) + 1
+      const now = Date.now()
+      const inserts = staff
+        .filter((u) => {
+          if (alreadyUsers.has(u.id)) return false
+          const name = (u.display_name || u.email.split('@')[0] || '').trim().toLowerCase()
+          // Skip if an author with the same display name is already on the page
+          if (name && alreadyNames.has(name)) return false
+          return true
+        })
+        .map((u) => {
+          const order = nextOrder++
+          const name = (u.display_name || u.email.split('@')[0] || u.email).trim()
+          return env.DB.prepare(
+            `INSERT INTO team_page_members
+             (id, author_id, user_id, name, role_title, bio, avatar, twitter, instagram, linkedin, sort_order, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ).bind(
+            id(),
+            '',
+            u.id,
+            name,
+            staffRoleTitle(u.role),
+            '',
+            '',
+            '',
+            '',
+            '',
+            order,
+            now,
+            now,
+          )
+        })
+      if (inserts.length) await env.DB.batch(inserts)
+      const { results } = await env.DB.prepare(
+        'SELECT * FROM team_page_members ORDER BY sort_order ASC, name ASC',
+      ).all<TeamPageMemberRow>()
+      return json({
+        members: (results || []).map(mapTeamPageMember),
+        imported: inserts.length,
+      })
+    }
+
+    if (path === '/api/team-page/staff-candidates' && method === 'GET') {
+      const auth = await requireUser(request, env, 'manage_authors')
+      if ('error' in auth) return auth.error
+      const { results: staff } = await env.DB.prepare(
+        `SELECT id, email, display_name, role FROM users
+         WHERE role IN ('admin', 'editor', 'seo', 'author')
+         ORDER BY display_name ASC, email ASC`,
+      ).all<{ id: string; email: string; display_name: string; role: string }>()
+      const existing = await env.DB.prepare('SELECT user_id FROM team_page_members').all<{
+        user_id: string
+      }>()
+      const already = new Set(
+        (existing.results || []).map((r) => r.user_id).filter((uid) => uid && uid.length > 0),
+      )
+      return json({
+        users: (staff || [])
+          .filter((u) => !already.has(u.id))
+          .map((u) => ({
+            uid: u.id,
+            email: u.email,
+            displayName: u.display_name || u.email.split('@')[0] || u.email,
+            role: u.role,
+          })),
+      })
     }
 
     // --- Quizzes ---
